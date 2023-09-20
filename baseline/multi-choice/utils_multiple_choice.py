@@ -185,11 +185,13 @@ def convert_examples_to_features(
                 text_b,
                 add_special_tokens=True,
                 max_length=max_length,
+                return_token_type_ids = True,
+                #truncation=True
             )
             if 'num_truncated_tokens' in inputs and inputs['num_truncated_tokens'] > 0:
                 logger.info('Attention!You are poping response,'
                         'you need to try to use a bigger max seq length!')
-
+           #print(inputs)
             input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
 
             # The mask has 1 for real tokens and 0 for padding tokens. Only real

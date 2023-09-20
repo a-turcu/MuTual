@@ -62,4 +62,7 @@ If the corpus or the analysis is helpful to your research, please kindly cite ou
 Please feel free to contact me(cuileyang@westlake.edu.cn), if you need any further information.
 
 # Acknowledgement
-We thank [Qingkai Min](https://taolusi.github.io/qingkai_min) for helping us to build the [leaderboard](https://nealcly.github.io/MuTual-leaderboard/). 
+We thank [Qingkai Min](https://taolusi.github.io/qingkai_min) for helping us to build the [leaderboard](https://nealcly.github.io/MuTual-leaderboard/).
+
+# Run with
+python baseline/multi-choice/run_multiple_choice.py --do_train --do_lower_case

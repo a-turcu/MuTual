@@ -42,22 +42,29 @@ from transformers import (WEIGHTS_NAME, BertConfig,
                           XLNetTokenizer, RobertaConfig,
                           RobertaForMultipleChoice, RobertaTokenizer)
 
+from transformers import BERT_PRETRAINED_CONFIG_ARCHIVE_MAP
+
 from transformers import AdamW
 
 from utils_multiple_choice import (convert_examples_to_features, processors)
 
 import os
+import transformers
+transformers.logging.set_verbosity_error()
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 logger = logging.getLogger(__name__)
 
-ALL_MODELS = sum(
-    (tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig, XLNetConfig, RobertaConfig)), ())
+#ALL_MODELS = sum(
+    # (tuple(conf.pretrained_config_archive_map.keys()) for conf in (BertConfig, XLNetConfig, RobertaConfig)), ())
+ #   (tuple(RobertaConfig.pretrained_config_archive_map.keys()) , ())
+#)
+
 
 MODEL_CLASSES = {
-    'bert': (BertConfig, BertForMultipleChoice, BertTokenizer),
-    'xlnet': (XLNetConfig, XLNetForMultipleChoice, XLNetTokenizer),
+    # 'bert': (BertConfig, BertForMultipleChoice, BertTokenizer),
+    # 'xlnet': (XLNetConfig, XLNetForMultipleChoice, XLNetTokenizer),
     'roberta': (RobertaConfig, RobertaForMultipleChoice, RobertaTokenizer)
 }
 
@@ -366,16 +373,15 @@ def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--data_dir", default=None, type=str, required=True,
+    parser.add_argument("--data_dir", default="data/mutual", type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--model_type", default=None, type=str, required=True,
+    parser.add_argument("--model_type", default="roberta", type=str,
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()))
-    parser.add_argument("--model_name_or_path", default=None, type=str, required=True,
-                        help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(
-                            ALL_MODELS))
-    parser.add_argument("--task_name", default=None, type=str, required=True,
+    parser.add_argument("--model_name_or_path", default="roberta-base", type=str,
+                        help="Path to pre-trained model or shortcut name selected in the list")
+    parser.add_argument("--task_name", default="mutual", type=str,
                         help="The name of the task to train selected in the list: " + ", ".join(processors.keys()))
-    parser.add_argument("--output_dir", default=None, type=str, required=True,
+    parser.add_argument("--output_dir", default="results", type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
@@ -383,7 +389,7 @@ def main():
                         help="Pretrained config name or path if not the same as model_name")
     parser.add_argument("--tokenizer_name", default="", type=str,
                         help="Pretrained tokenizer name or path if not the same as model_name")
-    parser.add_argument("--cache_dir", default="", type=str,
+    parser.add_argument("--cache_dir", default="cache", type=str,
                         help="Where do you want to store the pre-trained models downloaded from s3")
     parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after tokenization. Sequences longer "
