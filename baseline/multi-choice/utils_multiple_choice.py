@@ -124,7 +124,7 @@ class MuTualProcessor(DataProcessor):
         lines = []
         files = glob.glob(input_dir + "/*txt")
         for file in tqdm.tqdm(files, desc="read files"):
-            with open(file, 'r', encoding='utf-8') as fin:
+            with open(file, 'r', encoding='ISO-8859-1') as fin:
                 data_raw = json.load(fin)
                 data_raw["id"] = file
                 lines.append(data_raw)
