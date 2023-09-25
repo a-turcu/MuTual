@@ -342,7 +342,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
         elif test:
             examples = processor.get_test_examples(args.data_dir)
         else:
-            examples = processor.get_train_examples(args.data_dir)
+            examples = processor.get_train_examples(args.data_dir, args.train_mode)
         logger.info("Training number: %s", str(len(examples)))
         features = convert_examples_to_features(
             examples,
@@ -385,6 +385,8 @@ def main():
                         help="The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
+    parser.add_argument("--train_mode", default="default", type=str, help="Train the model on one dataset or multiple datasets")
+
     parser.add_argument("--config_name", default="", type=str,
                         help="Pretrained config name or path if not the same as model_name")
     parser.add_argument("--tokenizer_name", default="", type=str,

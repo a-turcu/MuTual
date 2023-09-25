@@ -28,7 +28,7 @@ import glob
 import tqdm
 from typing import List
 from transformers import PreTrainedTokenizer
-
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +95,33 @@ class DataProcessor(object):
 class MuTualProcessor(DataProcessor):
     """Processor for the MuTual data set."""
 
-    def get_train_examples(self, data_dir):
+    def get_train_examples(self, data_dir, train_mode):
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
         file = os.path.join(data_dir, 'train')
         file = self._read_txt(file)
-        return self._create_examples(file, 'train')
+        examples = self._create_examples(file, 'train')
+        
+        if train_mode == 'random_mix':
+            data_dir2 = "data/mmlu"
+            logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
+            file = os.path.join(data_dir2, 'train')
+            # how many files should be considered?
+            file = self._read_txt(file, percentage=0.7)
+            examples.extend(self._create_examples(file, 'train'))
+        elif train_mode == "embeddings_mix":
+            # get bert embeddings for mutual
+            # get bert embeddings for mmlu
+            # select % of most similar mmlu embeddings
+
+            tokenizer = AutoTokenizer.from_pretrained("facebook/data2vec-text-base")
+            model = Data2VecTextModel.from_pretrained("facebook/data2vec-text-base")
+
+            inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+            outputs = model(**inputs)
+
+            last_hidden_states = outputs.last_hidden_state
+        return examples
 
     def get_dev_examples(self, data_dir):
         """See base class."""
@@ -120,9 +141,14 @@ class MuTualProcessor(DataProcessor):
         """See base class."""
         return ["0", "1", "2", "3"]
 
-    def _read_txt(self, input_dir):
+    def _read_txt(self, input_dir, percentage=1.0):
         lines = []
         files = glob.glob(input_dir + "/*txt")
+        
+        #randomly select a subset of files
+        if percentage < 1.0:
+            files = np.random.choice(files, int(len(files)*percentage), replace=False)
+
         for file in tqdm.tqdm(files, desc="read files"):
             with open(file, 'r', encoding='ISO-8859-1') as fin:
                 data_raw = json.load(fin)
