@@ -17,23 +17,21 @@
 
 from __future__ import absolute_import, division, print_function
 
-
+import glob
+import json
 import logging
 import os
-import sys
 from io import open
-import json
-import csv
-import glob
-import tqdm
 from typing import List
-from transformers import PreTrainedTokenizer
+
 import numpy as np
+import tqdm
+from transformers import PreTrainedTokenizer
 
 logger = logging.getLogger(__name__)
 
 
-class InputExample(object):
+class InputExample:
     """A single training/test example for multiple choice"""
 
     def __init__(self, example_id, contexts, endings, label=None):
@@ -53,26 +51,21 @@ class InputExample(object):
         self.label = label
 
 
-class InputFeatures(object):
-    def __init__(self,
-                 example_id,
-                 choices_features,
-                 label
-
-    ):
+class InputFeatures:
+    def __init__(self, example_id, choices_features, label):
         self.example_id = example_id
         self.choices_features = [
             {
-                'input_ids': input_ids,
-                'input_mask': input_mask,
-                'segment_ids': segment_ids
+                "input_ids": input_ids,
+                "input_mask": input_mask,
+                "segment_ids": segment_ids,
             }
             for input_ids, input_mask, segment_ids in choices_features
         ]
         self.label = label
 
 
-class DataProcessor(object):
+class DataProcessor:
     """Base class for data converters for multiple choice data sets."""
 
     def get_train_examples(self, data_dir):
@@ -98,44 +91,37 @@ class MuTualProcessor(DataProcessor):
     def get_train_examples(self, data_dir, train_mode):
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
-        file = os.path.join(data_dir, 'train')
+        file = os.path.join(data_dir, "train")
         file = self._read_txt(file)
-        examples = self._create_examples(file, 'train')
-        
-        if train_mode == 'random_mix':
+        examples = self._create_examples(file, "train")
+        # TODO make `data_dir2` and `percentage` cli params
+        if train_mode == "random_mix":
             data_dir2 = "data/mmlu"
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
-            file = os.path.join(data_dir2, 'train')
+            file = os.path.join(data_dir2, "train")
             # how many files should be considered?
             file = self._read_txt(file, percentage=0.7)
-            examples.extend(self._create_examples(file, 'train'))
+            examples.extend(self._create_examples(file, "train"))
         elif train_mode == "embeddings_mix":
             # get bert embeddings for mutual
             # get bert embeddings for mmlu
             # select % of most similar mmlu embeddings
-
-            tokenizer = AutoTokenizer.from_pretrained("facebook/data2vec-text-base")
-            model = Data2VecTextModel.from_pretrained("facebook/data2vec-text-base")
-
-            inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
-            outputs = model(**inputs)
-
-            last_hidden_states = outputs.last_hidden_state
+            ...
         return examples
 
     def get_dev_examples(self, data_dir):
         """See base class."""
         logger.info("LOOKING AT {} dev".format(data_dir))
-        file = os.path.join(data_dir, 'dev')
+        file = os.path.join(data_dir, "dev")
         file = self._read_txt(file)
-        return self._create_examples(file, 'dev')
+        return self._create_examples(file, "dev")
 
     def get_test_examples(self, data_dir):
         """See base class."""
         logger.info("LOOKING AT {} test".format(data_dir))
-        file = os.path.join(data_dir, 'test')
+        file = os.path.join(data_dir, "test")
         file = self._read_txt(file)
-        return self._create_examples(file, 'test')
+        return self._create_examples(file, "test")
 
     def get_labels(self):
         """See base class."""
@@ -144,35 +130,41 @@ class MuTualProcessor(DataProcessor):
     def _read_txt(self, input_dir, percentage=1.0):
         lines = []
         files = glob.glob(input_dir + "/*txt")
-        
-        #randomly select a subset of files
+
+        # randomly select a subset of files
         if percentage < 1.0:
-            files = np.random.choice(files, int(len(files)*percentage), replace=False)
+            files = np.random.choice(files, int(len(files) * percentage), replace=False)
 
         for file in tqdm.tqdm(files, desc="read files"):
-            with open(file, 'r', encoding='ISO-8859-1') as fin:
+            with open(file, "r", encoding="ISO-8859-1") as fin:
                 data_raw = json.load(fin)
                 data_raw["id"] = file
                 lines.append(data_raw)
         return lines
 
-
     def _create_examples(self, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
-        for (_, data_raw) in enumerate(lines):
+        for _, data_raw in enumerate(lines):
             id = "%s-%s" % (set_type, data_raw["id"])
             article = data_raw["article"]
 
-            truth = str(ord(data_raw['answers']) - ord('A'))
-            options = data_raw['options']
+            truth = str(ord(data_raw["answers"]) - ord("A"))
+            options = data_raw["options"]
 
             examples.append(
                 InputExample(
                     example_id=id,
-                    contexts=[article, article, article, article], # this is not efficient but convenient
+                    contexts=[
+                        article,
+                        article,
+                        article,
+                        article,
+                    ],  # this is not efficient but convenient
                     endings=[options[0], options[1], options[2], options[3]],
-                    label=truth))
+                    label=truth,
+                )
+            )
         return examples
 
 
@@ -190,14 +182,18 @@ def convert_examples_to_features(
     Loads a data file into a list of `InputFeatures`
     """
 
-    label_map = {label : i for i, label in enumerate(label_list)}
+    label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
-    for (ex_index, example) in tqdm.tqdm(enumerate(examples), desc="convert examples to features"):
+    for ex_index, example in tqdm.tqdm(
+        enumerate(examples), desc="convert examples to features"
+    ):
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
         choices_features = []
-        for ending_idx, (context, ending) in enumerate(zip(example.contexts, example.endings)):
+        for ending_idx, (context, ending) in enumerate(
+            zip(example.contexts, example.endings)
+        ):
             text_a = context
             # text_a = ""
             # if example.question.find("_") != -1:
@@ -211,13 +207,15 @@ def convert_examples_to_features(
                 text_b,
                 add_special_tokens=True,
                 max_length=max_length,
-                return_token_type_ids = True,
-                #truncation=True
+                return_token_type_ids=True,
+                # truncation=True
             )
-            if 'num_truncated_tokens' in inputs and inputs['num_truncated_tokens'] > 0:
-                logger.info('Attention!You are poping response,'
-                        'you need to try to use a bigger max seq length!')
-           #print(inputs)
+            if "num_truncated_tokens" in inputs and inputs["num_truncated_tokens"] > 0:
+                logger.info(
+                    "Attention!You are poping response,"
+                    "you need to try to use a bigger max seq length!"
+                )
+            # print(inputs)
             input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
 
             # The mask has 1 for real tokens and 0 for padding tokens. Only real
@@ -228,29 +226,42 @@ def convert_examples_to_features(
             padding_length = max_length - len(input_ids)
             if pad_on_left:
                 input_ids = ([pad_token] * padding_length) + input_ids
-                attention_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + attention_mask
-                token_type_ids = ([pad_token_segment_id] * padding_length) + token_type_ids
+                attention_mask = (
+                    [0 if mask_padding_with_zero else 1] * padding_length
+                ) + attention_mask
+                token_type_ids = (
+                    [pad_token_segment_id] * padding_length
+                ) + token_type_ids
             else:
                 input_ids = input_ids + ([pad_token] * padding_length)
-                attention_mask = attention_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
-                token_type_ids = token_type_ids + ([pad_token_segment_id] * padding_length)
+                attention_mask = attention_mask + (
+                    [0 if mask_padding_with_zero else 1] * padding_length
+                )
+                token_type_ids = token_type_ids + (
+                    [pad_token_segment_id] * padding_length
+                )
 
             assert len(input_ids) == max_length
             assert len(attention_mask) == max_length
             assert len(token_type_ids) == max_length
             choices_features.append((input_ids, attention_mask, token_type_ids))
 
-
         label = label_map[example.label]
 
         if ex_index < 2:
             logger.info("*** Example ***")
             logger.info("race_id: {}".format(example.example_id))
-            for choice_idx, (input_ids, attention_mask, token_type_ids) in enumerate(choices_features):
+            for choice_idx, (input_ids, attention_mask, token_type_ids) in enumerate(
+                choices_features
+            ):
                 logger.info("choice: {}".format(choice_idx))
-                logger.info("input_ids: {}".format(' '.join(map(str, input_ids))))
-                logger.info("attention_mask: {}".format(' '.join(map(str, attention_mask))))
-                logger.info("token_type_ids: {}".format(' '.join(map(str, token_type_ids))))
+                logger.info("input_ids: {}".format(" ".join(map(str, input_ids))))
+                logger.info(
+                    "attention_mask: {}".format(" ".join(map(str, attention_mask)))
+                )
+                logger.info(
+                    "token_type_ids: {}".format(" ".join(map(str, token_type_ids)))
+                )
                 logger.info("label: {}".format(label))
 
         features.append(
@@ -263,10 +274,12 @@ def convert_examples_to_features(
 
     return features
 
+
 processors = {
     "mutual": MuTualProcessor,
 }
 
 MULTIPLE_CHOICE_TASKS_NUM_LABELS = {
-    "mutual", 4,
+    "mutual",
+    4,
 }
