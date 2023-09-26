@@ -21,6 +21,7 @@ import argparse
 import glob
 import logging
 import os
+import pprint
 import random
 
 import numpy as np
@@ -36,14 +37,14 @@ except:
 
 import os
 
+from torch.optim import AdamW
 from tqdm import tqdm, trange
 from transformers import (BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
                           ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, WEIGHTS_NAME,
-                          XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP, AdamW,
-                          BertConfig, BertForMultipleChoice, BertTokenizer,
-                          RobertaConfig, RobertaForMultipleChoice,
-                          RobertaTokenizer, XLNetConfig,
-                          XLNetForMultipleChoice, XLNetTokenizer)
+                          XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP, BertConfig,
+                          BertForMultipleChoice, BertTokenizer, RobertaConfig,
+                          RobertaForMultipleChoice, RobertaTokenizer,
+                          XLNetConfig, XLNetForMultipleChoice, XLNetTokenizer)
 
 from baseline.multi_choice.utils_multiple_choice import (
     convert_examples_to_features, processors)
@@ -762,7 +763,7 @@ def main():
 
     model.to(args.device)
 
-    logger.info("Training/evaluation parameters %s", args)
+    logger.info("Training/evaluation parameters:\n%s", pprint.pformat(vars(args)))
     best_steps = 0
 
     # Training

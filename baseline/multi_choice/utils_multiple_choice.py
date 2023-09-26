@@ -103,7 +103,7 @@ class DataProcessor:
 class MuTualProcessor(DataProcessor):
     """Processor for the MuTual data set."""
 
-    def get_train_examples(self, data_dir, train_mode):
+    def get_train_examples(self, data_dir, train_mode=None):
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
         file = os.path.join(data_dir, "train")
