@@ -21,7 +21,9 @@ import glob
 import json
 import logging
 import os
+import re
 from io import open
+from pprint import pformat
 from typing import List
 
 import numpy as np
@@ -32,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 class InputExample:
-    """A single training/test example for multiple choice"""
+    """A single training/test example for multiple choice."""
 
     def __init__(self, example_id, contexts, endings, label=None):
         """Constructs a InputExample.
@@ -40,15 +42,28 @@ class InputExample:
         Args:
             example_id: Unique id for the example.
             contexts: list of str. The untokenized text of the first sequence (context of corresponding question).
-            question: string. The untokenized text of the second sequence (question).
             endings: list of str. multiple choice's options. Its length must be equal to contexts' length.
             label: (Optional) string. The label of the example. This should be
-            specified for train and dev examples, but not for test examples.
+                specified for train and dev examples, but not for test examples.
         """
         self.example_id = example_id
         self.contexts = contexts
         self.endings = endings
         self.label = label
+
+    def inplace_remove_speakers(self, replacement: str = ""):
+        """Remove speaker labels including ':' and surrounding spaces."""
+        match = re.compile(r"\b([mfMF]) ?: ")
+        context = match.sub(replacement, self.contexts[0])
+        self.contexts = [context] * 4
+        self.endings = match.sub(replacement, "\n".join(self.endings)).split("\n")
+
+    def __repr__(self) -> str:
+        return (
+            f"""<InputExample(context={self.contexts[0]}, """
+            f"""endings={pformat(self.endings)}, label={self.label}, """
+            f"""id={self.example_id})>"""
+        )
 
 
 class InputFeatures:
