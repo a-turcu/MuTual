@@ -44,7 +44,9 @@ from transformers import (BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
                           RobertaConfig, RobertaForMultipleChoice,
                           RobertaTokenizer, XLNetConfig,
                           XLNetForMultipleChoice, XLNetTokenizer)
-from utils_multiple_choice import convert_examples_to_features, processors
+
+from baseline.multi_choice.utils_multiple_choice import (
+    convert_examples_to_features, processors)
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
@@ -58,13 +60,6 @@ for modelfamily_name in [
 ]:
     ALL_MODELS += list(modelfamily_name)
 
-ALL_MODELS = sum(
-    (
-        tuple(conf.pretrained_config_archive_map.keys())
-        for conf in (BertConfig, XLNetConfig, RobertaConfig)
-    ),
-    (),
-)
 
 MODEL_CLASSES = {
     "bert": (BertConfig, BertForMultipleChoice, BertTokenizer),
