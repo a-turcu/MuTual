@@ -2,11 +2,11 @@
 
 # https://servicedesk.surf.nl/wiki/pages/viewpage.action?pageId=30660252#JupyterNotebooksonSnellius/Lisa-RunningJupyterNotebooksonLisa/Snelliususingyourownbatchscript
 
-#SBATCH --time 00:30:00
-#SBATCH --ntasks 1
-#SBATCH --gpus 1
-#SBATCH --partition gpu
-#SBATCH --job-name=start_jupyter
+#SBATCH --time=00:30:00
+#SBATCH --ntasks=1
+#SBATCH --gpus=1
+#SBATCH --partition=gpu
+#SBATCH --job-name=jupyter_server_gpu
 #SBATCH --output=/home/%u/job_logs/%x_%A_%u.out
 
 # Make sure the jupyter command is available, either by loading the appropriate modules, sourcing your own virtual environment, etc.

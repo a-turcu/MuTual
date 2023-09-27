@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 
-#SBATCH --time 02:00:00
-#SBATCH --ntasks 1
-#SBATCH --gpus 1
-#SBATCH --partition gpu
+#SBATCH --time=02:00:00
+#SBATCH --ntasks=1
+#SBATCH --gpus=1
+#SBATCH --partition=gpu
 #SBATCH --job-name=robertaMC_mutual_baseline
 #SBATCH --output=/home/%u/job_logs/%x_%A_%u.out
 
