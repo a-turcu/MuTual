@@ -446,6 +446,14 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
             examples = processor.get_test_examples(args.data_dir)
         else:
             examples = processor.get_train_examples(args.data_dir)
+        if args.remove_speakers:
+            logger.info(
+                "Removing speaker tags from context and endings of %s - %s",
+                args.data_dir,
+                cached_mode,
+            )
+            for ex in examples:
+                ex.inplace_remove_speakers()
         logger.info("Training number: %s", str(len(examples)))
         features = convert_examples_to_features(
             examples,
@@ -669,6 +677,9 @@ def main():
     )
     parser.add_argument(
         "--server_port", type=str, default="", help="For distant debugging."
+    )
+    parser.add_argument(
+        "--remove_speakers", action="store_true", help="Remove M: and F: speaker tags from dialogues."
     )
     args = parser.parse_args()
 
