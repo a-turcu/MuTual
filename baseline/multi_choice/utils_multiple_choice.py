@@ -261,7 +261,9 @@ def convert_examples_to_features(
             assert len(token_type_ids) == max_length
             choices_features.append((input_ids, attention_mask, token_type_ids))
 
-        label = label_map[example.label]
+        # test set does not have answers, which by the way 'truth' is calculated,
+        # leaves the label -33
+        label = label_map.get(example.label)
 
         if ex_index < 2:
             logger.info("*** Example ***")
@@ -290,11 +292,6 @@ def convert_examples_to_features(
     return features
 
 
-processors = {
-    "mutual": MuTualProcessor,
-}
+processors = {"mutual": MuTualProcessor}
 
-MULTIPLE_CHOICE_TASKS_NUM_LABELS = {
-    "mutual",
-    4,
-}
+MULTIPLE_CHOICE_TASKS_NUM_LABELS = {"mutual", 4}

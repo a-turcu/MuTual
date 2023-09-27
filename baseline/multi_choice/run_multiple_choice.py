@@ -478,6 +478,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
     all_segment_ids = torch.tensor(
         select_field(features, "segment_ids"), dtype=torch.long
     )
+    # NOTE testing phase crashes here, as labels are None (they are not provided)
     all_label_ids = torch.tensor([f.label for f in features], dtype=torch.long)
 
     dataset = TensorDataset(

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-#SBATCH --time=02:00:00
+#SBATCH --time=00:30:00
 #SBATCH --ntasks=1
 #SBATCH --gpus=1
 #SBATCH --partition=gpu
@@ -28,5 +28,4 @@ srun python -m baseline.multi_choice.run_multiple_choice \
     --do_lower_case \
     --do_train \
     --do_eval \
-    --do_test \
     --evaluate_during_training
