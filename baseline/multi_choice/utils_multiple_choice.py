@@ -153,6 +153,7 @@ class MuTualProcessor(DataProcessor):
         for file in tqdm.tqdm(files, desc="read files"):
             with open(file, "r", encoding="ISO-8859-1") as fin:
                 data_raw = json.load(fin)
+                data_raw["id_emb"] = data_raw["id"]
                 data_raw["id"] = file
                 lines.append(data_raw)
         return lines
