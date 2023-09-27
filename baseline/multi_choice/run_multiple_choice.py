@@ -21,6 +21,7 @@ import argparse
 import glob
 import logging
 import os
+import pprint
 import random
 
 import numpy as np
@@ -36,14 +37,14 @@ except:
 
 import os
 
+from torch.optim import AdamW
 from tqdm import tqdm, trange
 from transformers import (BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
                           ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, WEIGHTS_NAME,
-                          XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP, AdamW,
-                          BertConfig, BertForMultipleChoice, BertTokenizer,
-                          RobertaConfig, RobertaForMultipleChoice,
-                          RobertaTokenizer, XLNetConfig,
-                          XLNetForMultipleChoice, XLNetTokenizer)
+                          XLNET_PRETRAINED_CONFIG_ARCHIVE_MAP, BertConfig,
+                          BertForMultipleChoice, BertTokenizer, RobertaConfig,
+                          RobertaForMultipleChoice, RobertaTokenizer,
+                          XLNetConfig, XLNetForMultipleChoice, XLNetTokenizer)
 
 from baseline.multi_choice.utils_multiple_choice import (
     convert_examples_to_features, processors)
@@ -445,6 +446,14 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
             examples = processor.get_test_examples(args.data_dir)
         else:
             examples = processor.get_train_examples(args.data_dir)
+        if args.remove_speakers:
+            logger.info(
+                "Removing speaker tags from context and endings of %s - %s",
+                args.data_dir,
+                cached_mode,
+            )
+            for ex in examples:
+                ex.inplace_remove_speakers()
         logger.info("Training number: %s", str(len(examples)))
         features = convert_examples_to_features(
             examples,
@@ -469,6 +478,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
     all_segment_ids = torch.tensor(
         select_field(features, "segment_ids"), dtype=torch.long
     )
+    # NOTE testing phase crashes here, as labels are None (they are not provided)
     all_label_ids = torch.tensor([f.label for f in features], dtype=torch.long)
 
     dataset = TensorDataset(
@@ -669,6 +679,9 @@ def main():
     parser.add_argument(
         "--server_port", type=str, default="", help="For distant debugging."
     )
+    parser.add_argument(
+        "--remove_speakers", action="store_true", help="Remove M: and F: speaker tags from dialogues."
+    )
     args = parser.parse_args()
 
     if (
@@ -762,7 +775,7 @@ def main():
 
     model.to(args.device)
 
-    logger.info("Training/evaluation parameters %s", args)
+    logger.info("Training/evaluation parameters:\n%s", pprint.pformat(vars(args)))
     best_steps = 0
 
     # Training

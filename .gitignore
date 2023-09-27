@@ -160,6 +160,9 @@ cython_debug/
 #.idea/
 
 
-data/
-cache/
-runs/
+data
+cache
+runs
+output
+
+.vscode

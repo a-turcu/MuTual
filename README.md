@@ -64,7 +64,7 @@ Please feel free to contact me(cuileyang@westlake.edu.cn), if you need any furth
 # Acknowledgement
 We thank [Qingkai Min](https://taolusi.github.io/qingkai_min) for helping us to build the [leaderboard](https://nealcly.github.io/MuTual-leaderboard/).
 
-# Run with
+# See available options with
 ```sh
-python -m baseline.multi_choice.run_multiple_choice --do_train --do_lower_case
+python -m baseline.multi_choice.run_multiple_choice --h
 ```
