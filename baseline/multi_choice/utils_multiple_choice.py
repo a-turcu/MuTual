@@ -103,7 +103,7 @@ class DataProcessor:
 class MuTualProcessor(DataProcessor):
     """Processor for the MuTual data set."""
 
-    def get_train_examples(self, data_dir, train_mode=None):
+    def get_train_examples(self, data_dir, train_mode):
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
         file = os.path.join(data_dir, "train")
@@ -262,9 +262,7 @@ def convert_examples_to_features(
             assert len(token_type_ids) == max_length
             choices_features.append((input_ids, attention_mask, token_type_ids))
 
-        # test set does not have answers, which by the way 'truth' is calculated,
-        # leaves the label -33
-        label = label_map.get(example.label)
+        label = label_map[example.label]
 
         if ex_index < 2:
             logger.info("*** Example ***")
@@ -293,6 +291,11 @@ def convert_examples_to_features(
     return features
 
 
-processors = {"mutual": MuTualProcessor}
+processors = {
+    "mutual": MuTualProcessor,
+}
 
-MULTIPLE_CHOICE_TASKS_NUM_LABELS = {"mutual", 4}
+MULTIPLE_CHOICE_TASKS_NUM_LABELS = {
+    "mutual",
+    4,
+}
