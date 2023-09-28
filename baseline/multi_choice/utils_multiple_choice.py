@@ -51,12 +51,23 @@ class InputExample:
         self.endings = endings
         self.label = label
 
-    def inplace_remove_speakers(self, replacement: str = ""):
-        """Remove speaker labels including ':' and surrounding spaces."""
+    def inplace_remove_speakers(
+        self, replacement: str = "", process_endings: bool = True
+    ):
+        """
+        In-place remove speaker labels tags of the form '<b>M/F:<b>'.
+
+        Parameters
+        ----------
+        `replacement`: String used to replace the speaker tags, defaults to blank.
+
+        `process_endings`: Whether to remove speaker tags next utterance choices.
+        """
         match = re.compile(r"\b([mfMF]) ?: ")
         context = match.sub(replacement, self.contexts[0])
-        self.contexts = [context] * 4
-        self.endings = match.sub(replacement, "\n".join(self.endings)).split("\n")
+        self.contexts = [context] * 4  # NOTE same pointer
+        if process_endings:
+            self.endings = match.sub(replacement, "\n".join(self.endings)).split("\n")
 
     def __repr__(self) -> str:
         return (
