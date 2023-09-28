@@ -27,9 +27,9 @@ def create_embeddings(model, split='train', data_dir='data/mutual_plus', save_di
 
 model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
-create_embeddings(model)
+create_embeddings(model, split='auxiliary_train', data_dir='data/mmlu', save_dir='data/mmlu/embeddings')
 
-with open('data/mutual_plus/embeddings/train.json', 'r') as f:
-	train = json.load(f)
-	print(len(train))
-	print(train.keys())
+# with open('data/mutual_plus/embeddings/train.json', 'r') as f:
+# 	train = json.load(f)
+# 	print(len(train))
+# 	print(train.keys())

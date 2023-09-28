@@ -1,5 +1,5 @@
 import os
-
+import json
 from datasets import load_dataset
 
 answer_labels = {0: "A", 1: "B", 2: "C", 3: "D"}
@@ -10,7 +10,7 @@ answer_labels = {0: "A", 1: "B", 2: "C", 3: "D"}
 def save_split(split, mmlu_dataset, dataset_path):
     folder = os.path.join(dataset_path, split)
     if not os.path.exists(folder):
-        os.mkdir(folder)
+        os.makedirs(folder)
 
     for i, row in enumerate(mmlu_dataset[split]):
         row["answers"] = row.pop("answer")
@@ -20,12 +20,12 @@ def save_split(split, mmlu_dataset, dataset_path):
         row["id"] = f"{split}_{i + 1}"
 
         # replace with double quotes
-        row = str(row).replace("'", '"')
+        #row = str(row).replace("'", '"')
 
         file = os.path.join(dataset_path, split, f"{split}_{i + 1}.txt")
 
         with open(file, "w", encoding="utf-8") as f:
-            f.write(str(row))
+            f.write(json.dumps(row))
 
 
 if __name__ == "__main__":
@@ -33,5 +33,7 @@ if __name__ == "__main__":
 
     subset = "all"
     mmlu = load_dataset("cais/mmlu", "all")
+    
+    print(mmlu)
 
-    save_split("test")
+    save_split("auxiliary_train", mmlu, path)
