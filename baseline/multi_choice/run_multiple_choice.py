@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Finetuning the library models for multiple choice (Bert, Roberta, XLNet)."""
+# TO RUN
+#python -u baseline\multi_choice\run_multiple_choice.py --train_mode "random_mix" --percentage 0.1 --data_dir "data/mutual_plus" --model_type "roberta" --model_name_or_path "roberta-base" --task_name "mutual" --output_dir "output" --do_train
 
 from __future__ import absolute_import, division, print_function
 
@@ -46,10 +48,15 @@ from transformers import (BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
                           RobertaForMultipleChoice, RobertaTokenizer,
                           XLNetConfig, XLNetForMultipleChoice, XLNetTokenizer)
 
-from baseline.multi_choice.utils_multiple_choice import (
+from utils_multiple_choice import (
     convert_examples_to_features, processors)
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+#! THIS REMOVES A WARNING ABOUT TOKENS. WE NEED TO SOLVE IT
+import transformers
+transformers.logging.set_verbosity_error()
+
 
 logger = logging.getLogger(__name__)
 
@@ -445,7 +452,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
         elif test:
             examples = processor.get_test_examples(args.data_dir)
         else:
-            examples = processor.get_train_examples(args.data_dir)
+            examples = processor.get_train_examples(args.data_dir, args.percentage, args.train_mode)
         if args.remove_speakers:
             logger.info(
                 "Removing speaker tags from context and endings of %s - %s",
@@ -682,6 +689,15 @@ def main():
     parser.add_argument(
         "--remove_speakers", action="store_true", help="Remove M: and F: speaker tags from dialogues."
     )
+
+    parser.add_argument(
+        "--train_mode",  type=str, default="" , choices=["random_mix", "embeddings_mix"], help="Choose to finetune on mutual or a mix of mutual and mmlu"
+    )
+    
+    parser.add_argument(
+        "--percentage", type=float, default=1.0, help="Set what percentage of mmlu to include in training (if any)"
+    )
+
     args = parser.parse_args()
 
     if (

@@ -4,9 +4,15 @@ import numpy as np
 import itertools
 
 from sentence_transformers import SentenceTransformer, util
-from utils_multiple_choice import MuTualProcessor
+#from utils_multiple_choice import MuTualProcessor
 
-def create_embeddings(model, split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
+def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
+
+	if os.path.exists(os.path.join(save_dir, f'{split}.json')):
+		print(f'{split}.json already exists in {save_dir}.')
+		return
+
+	model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
 	p = MuTualProcessor()
 	data = p._read_txt(os.path.join(data_dir, split))
@@ -26,7 +32,7 @@ def create_embeddings(model, split='train', data_dir='data/mutual_plus', save_di
 		json.dump(save_dict, f)
 
 
-def compare_embeddings(mutual_dir, mmlu_dir):
+def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.7):
 
 	# keys are strings; values are lists
 	emb_mutual = json.load(open(os.path.join(mutual_dir, 'train.json')))
@@ -41,19 +47,16 @@ def compare_embeddings(mutual_dir, mmlu_dir):
 
 	# divide all scores by the length of mutual
 	len_mutual = len(emb_mutual)
-	scores = {k: v/len_mutual for k, v in scores.items()}
+	scores = {key: v/len_mutual for key, v in scores.items()}
 
+	k = percentage * len(scores)
 	# get best k scores
-	k = 10
 	best_k = sorted(scores, key=scores.get, reverse=True)[:k]
-
-	for key in best_k:
-		print(key, scores[key])
 
 	return best_k
 
-compare_embeddings('data/mutual_plus/embeddings', 'data/mmlu/embeddings')
+#compare_embeddings('data/mutual_plus/embeddings', 'data/mmlu/embeddings')
 
-# model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+# 
 
 # create_embeddings(model, split='auxiliary_train', data_dir='data/mmlu', save_dir='data/mmlu/embeddings')

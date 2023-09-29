@@ -30,6 +30,9 @@ import numpy as np
 import tqdm
 from transformers import PreTrainedTokenizer
 
+from embeddings import get_closest_embeddings
+from embeddings import create_embeddings
+
 logger = logging.getLogger(__name__)
 
 
@@ -103,25 +106,33 @@ class DataProcessor:
 class MuTualProcessor(DataProcessor):
     """Processor for the MuTual data set."""
 
-    def get_train_examples(self, data_dir, train_mode=None):
+    def get_train_examples(self, data_dir, percentage=0.7, train_mode=None):
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
         file = os.path.join(data_dir, "train")
         file = self._read_txt(file)
         examples = self._create_examples(file, "train")
-        # TODO make `data_dir2` and `percentage` cli params
+
+        data_dir2 = "data/mmlu"
+        file = os.path.join(data_dir2, "auxiliary_train")
+
         if train_mode == "random_mix":
-            data_dir2 = "data/mmlu"
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
-            file = os.path.join(data_dir2, "train")
+
             # how many files should be considered?
-            file = self._read_txt(file, percentage=0.7)
+            file = self._read_txt(file, percentage=percentage)
             examples.extend(self._create_examples(file, "train"))
         elif train_mode == "embeddings_mix":
-            # get bert embeddings for mutual
-            # get bert embeddings for mmlu
-            # select % of most similar mmlu embeddings
-            ...
+
+            create_embeddings(split="train", data_dir=data_dir, save_dir=f"{data_dir}/embeddings")
+            create_embeddings(split="auxiliary_train", data_dir=data_dir2, save_dir=f"{data_dir2}/embeddings")
+
+            best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage=0.7)
+            file = self._read_txt(file, percentage=1.0)
+            file = [f for f in file if f["id_emb"] in best_emb_id]
+            examples.extend(self._create_examples(file, "train"))
+
+
         return examples
 
     def get_dev_examples(self, data_dir):
@@ -224,7 +235,8 @@ def convert_examples_to_features(
                 add_special_tokens=True,
                 max_length=max_length,
                 return_token_type_ids=True,
-                # truncation=True
+                # WHY WAS TRUNCATION COMMENTED?
+                truncation=True
             )
             if "num_truncated_tokens" in inputs and inputs["num_truncated_tokens"] > 0:
                 logger.info(
