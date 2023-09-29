@@ -164,5 +164,6 @@ data
 cache
 runs
 output
+vector_db
 
 .vscode
