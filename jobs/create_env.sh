@@ -13,4 +13,5 @@ module purge
 module load 2022
 module load Anaconda3/2022.05
 
-conda create -f MuTual/env.yml -y
+cd MuTual
+conda env create -f env.yml
