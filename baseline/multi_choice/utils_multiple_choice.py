@@ -127,7 +127,7 @@ class MuTualProcessor(DataProcessor):
             create_embeddings(split="train", data_dir=data_dir, save_dir=f"{data_dir}/embeddings")
             create_embeddings(split="auxiliary_train", data_dir=data_dir2, save_dir=f"{data_dir2}/embeddings")
 
-            best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage=0.7)
+            best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage=percentage)
             file = self._read_txt(file, percentage=1.0)
             file = [f for f in file if f["id_emb"] in best_emb_id]
             examples.extend(self._create_examples(file, "train"))
@@ -153,13 +153,9 @@ class MuTualProcessor(DataProcessor):
         """See base class."""
         return ["0", "1", "2", "3"]
 
-    def _read_txt(self, input_dir, percentage=1.0):
+    def _read_txt(self, input_dir):
         lines = []
         files = glob.glob(input_dir + "/*txt")
-
-        # randomly select a subset of files
-        if percentage < 1.0:
-            files = np.random.choice(files, int(len(files) * percentage), replace=False)
 
         for file in tqdm.tqdm(files, desc="read files"):
             with open(file, "r", encoding="ISO-8859-1") as fin:

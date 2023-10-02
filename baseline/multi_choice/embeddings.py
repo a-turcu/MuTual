@@ -14,7 +14,7 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 		print(f'{split}.json already exists in {save_dir}.')
 		return
 
-	model = SentenceTransformer('sentence-transformers/all-distilroberta-v1')
+	model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
 	p = MuTualProcessor()
 	data = p._read_txt(os.path.join(data_dir, split))
@@ -38,7 +38,7 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.7):
 
 	# keys are strings; values are lists
 	emb_mutual = json.load(open(os.path.join(mutual_dir, 'train.json')))
-	emb_mmlu = json.load(open(os.path.join(mmlu_dir, 'short.json')))
+	emb_mmlu = json.load(open(os.path.join(mmlu_dir, 'auxiliary_train.json')))
 
 	scores = dict.fromkeys(emb_mmlu.keys(), 0)
 
