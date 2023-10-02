@@ -4,15 +4,17 @@ import numpy as np
 import itertools
 
 from sentence_transformers import SentenceTransformer, util
-from utils_multiple_choice import MuTualProcessor
+
 
 def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
-
+	
+	from utils_multiple_choice import MuTualProcessor
+	
 	if os.path.exists(os.path.join(save_dir, f'{split}.json')):
 		print(f'{split}.json already exists in {save_dir}.')
 		return
 
-	model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+	model = SentenceTransformer('sentence-transformers/all-distilroberta-v1')
 
 	p = MuTualProcessor()
 	data = p._read_txt(os.path.join(data_dir, split))
