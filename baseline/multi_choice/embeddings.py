@@ -4,7 +4,7 @@ import numpy as np
 import itertools
 
 from sentence_transformers import SentenceTransformer, util
-#from utils_multiple_choice import MuTualProcessor
+from utils_multiple_choice import MuTualProcessor
 
 def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
 
@@ -54,9 +54,3 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.7):
 	best_k = sorted(scores, key=scores.get, reverse=True)[:k]
 
 	return best_k
-
-#compare_embeddings('data/mutual_plus/embeddings', 'data/mmlu/embeddings')
-
-# 
-
-# create_embeddings(model, split='auxiliary_train', data_dir='data/mmlu', save_dir='data/mmlu/embeddings')
