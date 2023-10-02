@@ -617,7 +617,7 @@ def main():
     )
     parser.add_argument(
         "--num_train_epochs",
-        default=3.0,
+        default=10.0,
         type=float,
         help="Total number of training epochs to perform.",
     )
