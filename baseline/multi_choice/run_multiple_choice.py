@@ -98,6 +98,9 @@ def train(args, train_dataset, model, tokenizer):
     """Train the model"""
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter()
+        # set tb_writer save dir
+        tb_writer.log_dir = args.output_dir
+        
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = (
         RandomSampler(train_dataset)
@@ -876,6 +879,10 @@ def main():
         )
     return results
 
+# WHAT WE WANT TO RUN
+# Classic (3 and 10 epochs) + Test
+# Random (3 and 10 epochs, different percentages 0.04, 0.08) + Test
+# Similarity (3 and 10 epochs, different percentages 0.04, 0.08) + Test (run embedding)
 
 if __name__ == "__main__":
     main()

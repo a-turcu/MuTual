@@ -106,7 +106,7 @@ class DataProcessor:
 class MuTualProcessor(DataProcessor):
     """Processor for the MuTual data set."""
 
-    def get_train_examples(self, data_dir, percentage=0.7, train_mode=None):
+    def get_train_examples(self, data_dir, percentage=0.04, train_mode=None):
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
         file = os.path.join(data_dir, "train")
@@ -120,7 +120,7 @@ class MuTualProcessor(DataProcessor):
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
 
             # how many files should be considered?
-            file = self._read_txt(file, percentage=percentage)
+            file = self._read_txt(file)
             examples.extend(self._create_examples(file, "train"))
         elif train_mode == "embeddings_mix":
 
@@ -128,10 +128,14 @@ class MuTualProcessor(DataProcessor):
             create_embeddings(split="auxiliary_train", data_dir=data_dir2, save_dir=f"{data_dir2}/embeddings")
 
             best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage=percentage)
-            file = self._read_txt(file, percentage=1.0)
+
+            # save best embeddings_id
+            with open(f"{data_dir}/embeddings/best_emb_id.json", "w") as f:
+                json.dump(best_emb_id, f)
+
+            file = self._read_txt(file)
             file = [f for f in file if f["id_emb"] in best_emb_id]
             examples.extend(self._create_examples(file, "train"))
-
 
         return examples
 
