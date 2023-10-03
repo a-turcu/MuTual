@@ -2,9 +2,11 @@ import os, json
 import regex as re
 import numpy as np
 import itertools
+import logging
 
 from sentence_transformers import SentenceTransformer, util
 
+logger = logging.getLogger(__name__)
 
 def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
 	
@@ -18,6 +20,8 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 
 	p = MuTualProcessor()
 	data = p._read_txt(os.path.join(data_dir, split))
+
+	logger.info(f"Creating {save_dir}/{split} embeddings")
 
 	save_dict = {}
 	for line in data:
@@ -33,8 +37,9 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 	with open(f'{save_dir}/{split}.json', 'w') as f:
 		json.dump(save_dict, f)
 
+	logger.info(f"Saved {save_dir}/{split}.json")
 
-def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.7):
+def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 
 	# keys are strings; values are lists
 	emb_mutual = json.load(open(os.path.join(mutual_dir, 'train.json')))
@@ -42,6 +47,7 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.7):
 
 	scores = dict.fromkeys(emb_mmlu.keys(), 0)
 
+	logger.info("Calculating cosine similarity scores")
 	for key, val in emb_mmlu.items():
 		prod = itertools.product([val], emb_mutual.values())
 		for i, j in prod:
@@ -54,5 +60,7 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.7):
 	k = percentage * len(scores)
 	# get best k scores
 	best_k = sorted(scores, key=scores.get, reverse=True)[:k]
+
+	logger.info("Calculated best k scores")
 
 	return best_k

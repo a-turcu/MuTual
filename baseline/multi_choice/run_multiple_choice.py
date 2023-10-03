@@ -879,6 +879,10 @@ def main():
         )
     return results
 
+# WHAT WE WANT TO RUN
+# Classic (3 and 10 epochs) + Test
+# Random (3 and 10 epochs, different percentages 0.04, 0.08) + Test
+# Similarity (3 and 10 epochs, different percentages 0.04, 0.08) + Test (run embedding)
 
 if __name__ == "__main__":
     main()
