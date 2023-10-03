@@ -120,7 +120,7 @@ class MuTualProcessor(DataProcessor):
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
 
             # how many files should be considered?
-            file = self._read_txt(file, percentage=percentage)
+            file = self._read_txt(file)
             examples.extend(self._create_examples(file, "train"))
         elif train_mode == "embeddings_mix":
 
