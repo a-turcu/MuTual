@@ -98,6 +98,9 @@ def train(args, train_dataset, model, tokenizer):
     """Train the model"""
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter()
+        # set tb_writer save dir
+        tb_writer.log_dir = args.output_dir
+        
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = (
         RandomSampler(train_dataset)
