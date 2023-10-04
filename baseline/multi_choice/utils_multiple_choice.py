@@ -30,8 +30,8 @@ import numpy as np
 import tqdm
 from transformers import PreTrainedTokenizer
 
-from embeddings import get_closest_embeddings, get_precomputed_closest_embeddings
-from embeddings import create_embeddings
+# from embeddings import get_closest_embeddings, get_precomputed_closest_embeddings
+# from embeddings import create_embeddings
 
 logger = logging.getLogger(__name__)
 

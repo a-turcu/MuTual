@@ -3,9 +3,11 @@ import regex as re
 import numpy as np
 import itertools
 import logging
+import time
 
 from tqdm import trange
 from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
 from sentence_transformers import SentenceTransformer, util
 
 logger = logging.getLogger(__name__)
@@ -26,12 +28,14 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 	logger.info(f"Creating {save_dir}/{split} embeddings")
 
 	save_dict = {}
+	clock = time.time()
 	for line in data:
 		match = re.compile(r"\b([mfMF]) ?: ")
 		context = match.sub("", line["article"])
 		embedding = model.encode(context, convert_to_tensor=True)
 		save_dict[line['id_emb']] = embedding.tolist()
 
+	print(f"Time taken: {time.time() - clock} seconds")
 	# check if save_dir exists
 	if not os.path.exists(save_dir):
 		os.makedirs(save_dir)
@@ -45,10 +49,6 @@ def create_embeddings_faiss(split='train', data_dir='data/mutual_plus', save_dir
 
 	from utils_multiple_choice import MuTualProcessor
 
-	if os.path.exists(os.path.join(save_dir, f'{split}.json')):
-		print(f'{split}.json already exists in {save_dir}.')
-		return
-
 	embedder = HuggingFaceEmbeddings(model_name="all-distilroberta-v1")
 
 	p = MuTualProcessor()
@@ -57,20 +57,24 @@ def create_embeddings_faiss(split='train', data_dir='data/mutual_plus', save_dir
 	logger.info(f"Creating {save_dir}/{split} embeddings")
 
 	context_db = [line["article"] for line in data]
-	batch_size = int(1e4)
-	mmlu_embeddings = np.zeros((len(context_db), embedder.client[1].word_embedding_dimension))
-
+	batch_size = int(1000)
+	embeddings = np.zeros((len(context_db), embedder.client[1].word_embedding_dimension))
+	clock = time.time()
 	for i in trange(0, len(context_db), batch_size):
+		print("Starting batch", i)
 		end = min(i + batch_size, len(context_db))
-		mmlu_embeddings[i:end, :] = np.array(embedder.embed_documents(context_db[i:end]))
-
+		embeddings[i:end, :] = np.array(embedder.embed_documents(context_db[i:end]))
+	print(f"Time taken: {time.time() - clock} seconds")
 	# check if save_dir exists
 	if not os.path.exists(save_dir):
 		os.makedirs(save_dir)
+ 
+	db = FAISS.from_embeddings(list(zip(context_db, embeddings.tolist())), embedder)
+	db.save_local(save_dir, split)
 
-	with open(f'{save_dir}/{split}.json', 'w') as f:
-		json.dump(mmlu_embeddings, f)
-		logger.info(f"Saved {save_dir}/{split}.json")
+create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings')
+create_embeddings_faiss(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings/FAISS')
+
 
 
 def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
