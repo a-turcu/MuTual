@@ -797,6 +797,9 @@ def main():
 
     model.to(args.device)
 
+    # create output directory if needed
+    os.makedirs(args.output_dir, exist_ok=True)
+
     logger.info("Training/evaluation parameters:\n%s", pprint.pformat(vars(args)))
     best_steps = 0
 
