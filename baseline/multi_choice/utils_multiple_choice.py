@@ -120,14 +120,14 @@ class MuTualProcessor(DataProcessor):
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
 
             # how many files should be considered?
-            file = self._read_txt(file)
+            file = self._read_txt(file, percentage)
             examples.extend(self._create_examples(file, "train"))
         elif train_mode == "embeddings_mix":
 
             create_embeddings(split="train", data_dir=data_dir, save_dir=f"{data_dir}/embeddings")
             create_embeddings(split="auxiliary_train", data_dir=data_dir2, save_dir=f"{data_dir2}/embeddings")
 
-            best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage=percentage)
+            best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage)
 
             # save best embeddings_id
             with open(f"{data_dir}/embeddings/best_emb_id.json", "w") as f:
@@ -157,9 +157,11 @@ class MuTualProcessor(DataProcessor):
         """See base class."""
         return ["0", "1", "2", "3"]
 
-    def _read_txt(self, input_dir):
+    def _read_txt(self, input_dir, percentage=1.0):
         lines = []
         files = glob.glob(input_dir + "/*txt")
+
+        files = np.random.choice(files, int(len(files) * percentage), replace=False)
 
         for file in tqdm.tqdm(files, desc="read files"):
             with open(file, "r", encoding="ISO-8859-1") as fin:

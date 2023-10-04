@@ -36,8 +36,7 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 
 	with open(f'{save_dir}/{split}.json', 'w') as f:
 		json.dump(save_dict, f)
-
-	logger.info(f"Saved {save_dir}/{split}.json")
+		logger.info(f"Saved {save_dir}/{split}.json")
 
 def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 
@@ -57,7 +56,7 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 	len_mutual = len(emb_mutual)
 	scores = {key: v/len_mutual for key, v in scores.items()}
 
-	k = percentage * len(scores)
+	k = int(percentage * len(scores))
 	# get best k scores
 	best_k = sorted(scores, key=scores.get, reverse=True)[:k]
 

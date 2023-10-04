@@ -97,9 +97,10 @@ def set_seed(args):
 def train(args, train_dataset, model, tokenizer):
     """Train the model"""
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(args.output_dir)
+        logger.info("Created summarywriter")
         # set tb_writer save dir
-        tb_writer.log_dir = args.output_dir
+        #tb_writer.log_dir = args.output_dir
         
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = (
@@ -456,6 +457,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
             examples = processor.get_test_examples(args.data_dir)
         else:
             examples = processor.get_train_examples(args.data_dir, args.percentage, args.train_mode)
+
         if args.remove_speakers:
             logger.info(
                 "Removing speaker tags from context and endings of %s - %s",
@@ -464,6 +466,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
             )
             for ex in examples:
                 ex.inplace_remove_speakers()
+
         logger.info("Training number: %s", str(len(examples)))
         features = convert_examples_to_features(
             examples,
@@ -620,7 +623,7 @@ def main():
     )
     parser.add_argument(
         "--num_train_epochs",
-        default=10.0,
+        default=5.0,
         type=float,
         help="Total number of training epochs to perform.",
     )
@@ -880,9 +883,9 @@ def main():
     return results
 
 # WHAT WE WANT TO RUN
-# Classic (3 and 10 epochs) + Test
-# Random (3 and 10 epochs, different percentages 0.04, 0.08) + Test
-# Similarity (3 and 10 epochs, different percentages 0.04, 0.08) + Test (run embedding)
+# Classic (10 epochs, with or without "--remove_speakers") + Test
+# Random (10 epochs, different percentages 0.04, 0.08) + Test
+# Similarity (10 epochs, different percentages 0.04, 0.08) + Test (run embedding)
 
 if __name__ == "__main__":
     main()
