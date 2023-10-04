@@ -4,6 +4,8 @@ import numpy as np
 import itertools
 import logging
 
+from tqdm import trange
+from langchain.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer, util
 
 logger = logging.getLogger(__name__)
@@ -16,7 +18,7 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 		print(f'{split}.json already exists in {save_dir}.')
 		return
 
-	model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+	model = SentenceTransformer('sentence-transformers/all-distilroberta-v1')
 
 	p = MuTualProcessor()
 	data = p._read_txt(os.path.join(data_dir, split))
@@ -37,6 +39,39 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 	with open(f'{save_dir}/{split}.json', 'w') as f:
 		json.dump(save_dict, f)
 		logger.info(f"Saved {save_dir}/{split}.json")
+  
+
+def create_embeddings_faiss(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
+
+	from utils_multiple_choice import MuTualProcessor
+
+	if os.path.exists(os.path.join(save_dir, f'{split}.json')):
+		print(f'{split}.json already exists in {save_dir}.')
+		return
+
+	embedder = HuggingFaceEmbeddings(model_name="all-distilroberta-v1")
+
+	p = MuTualProcessor()
+	data = p._read_txt(os.path.join(data_dir, split))
+
+	logger.info(f"Creating {save_dir}/{split} embeddings")
+
+	context_db = [line["article"] for line in data]
+	batch_size = int(1e4)
+	mmlu_embeddings = np.zeros((len(context_db), embedder.client[1].word_embedding_dimension))
+
+	for i in trange(0, len(context_db), batch_size):
+		end = min(i + batch_size, len(context_db))
+		mmlu_embeddings[i:end, :] = np.array(embedder.embed_documents(context_db[i:end]))
+
+	# check if save_dir exists
+	if not os.path.exists(save_dir):
+		os.makedirs(save_dir)
+
+	with open(f'{save_dir}/{split}.json', 'w') as f:
+		json.dump(mmlu_embeddings, f)
+		logger.info(f"Saved {save_dir}/{split}.json")
+
 
 def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 

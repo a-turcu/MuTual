@@ -69,46 +69,46 @@ def create_or_load_vectordb(
 
 
 
-# embedding_model_name = "multi-qa-mpnet-base-dot-v1"
-# embedder_dim = 768
-# embedder = HuggingFaceEmbeddings(model_name=embedding_model_name)
+embedding_model_name = "multi-qa-mpnet-base-dot-v1"
+embedder_dim = 768
+embedder = HuggingFaceEmbeddings(model_name=embedding_model_name)
 
-# mmlu_db_name = make_vectordb_dir_name("mmlu", "train", embedding_model_name)
-# mmlu_db = create_or_load_vectordb(savedir="baseline/embeddings/mmlu__train__multi-qa-mpnet-base-dot-v1", dataset=mmlu_db_name, embedder=embedder)
+mmlu_db_name = make_vectordb_dir_name("mmlu", "train", embedding_model_name)
+mmlu_db = create_or_load_vectordb(savedir="baseline/embeddings/mmlu__train__multi-qa-mpnet-base-dot-v1", dataset=mmlu_db_name, embedder=embedder)
 
-# mtl_db_name = make_vectordb_dir_name("mutual_plus", "train", embedding_model_name)
-# mtl_db = create_or_load_vectordb(savedir="baseline/embeddings/mutual_plus__train__multi-qa-mpnet-base-dot-v1", dataset=mtl_db_name, embedder=embedder)
+mtl_db_name = make_vectordb_dir_name("mutual_plus", "train", embedding_model_name)
+mtl_db = create_or_load_vectordb(savedir="baseline/embeddings/mutual_plus__train__multi-qa-mpnet-base-dot-v1", dataset=mtl_db_name, embedder=embedder)
 
-# with open(mutual_embeddings_path, 'r') as f:
-#	 print("Loading mutual embeddings...")
-#	 mtl_embeddings = json.load(f)
+with open(mutual_embeddings_path, 'r') as f:
+	print("Loading mutual embeddings...")
+	mtl_embeddings = json.load(f)
 
-# with open(mmlu_embeddings_path, 'r') as f:
-#	 mmlu_embeddings = json.load(f)
+with open(mmlu_embeddings_path, 'r') as f:
+	mmlu_embeddings = json.load(f)
 
-# mmlu_scores = {}
-
-
-# #prepare index of mtl for similarity search
-# Findex = FAISS.IndexFlatL2(embedder_dim)
-# Findex.add(mtl_db)
+mmlu_scores = {}
 
 
-# for row in tqdm.tqdm(mmlu_db.list()):
-# 	embedding = mmlu_db.index.reconstruct(row)
-# 	# compare row with mtl_data
-# 	score = cosine_similarity(embedding, mtl_db)
-# 	# get closest k embeddings
-# 	# k = 5
-# 	# distances, indices = Findex.search(embedding, k)
-# 	# score = cosine_similarity(embedding, mtl_embeddings)
-# 	mmlu_scores[row] = score
+#prepare index of mtl for similarity search
+Findex = FAISS.IndexFlatL2(embedder_dim)
+Findex.add(mtl_db)
+
+
+for row in tqdm.tqdm(mmlu_db.list()):
+	embedding = mmlu_db.index.reconstruct(row)
+	# compare row with mtl_data
+	score = cosine_similarity(embedding, mtl_db)
+	# get closest k embeddings
+	k = 5
+	distances, indices = Findex.search(embedding, k)
+	score = cosine_similarity(embedding, mtl_embeddings)
+	mmlu_scores[row] = score
 	
 
-# sorted_scores = sorted(mmlu_scores.items(), key=lambda x: x[1], reverse=True)
+sorted_scores = sorted(mmlu_scores.items(), key=lambda x: x[1], reverse=True)
 
-# with open(save_rankings_path, 'w') as f:
-# 	json.dump(sorted_scores, f)
+with open(save_rankings_path, 'w') as f:
+	json.dump(sorted_scores, f)
 
 
 with open(mtl_scores_path, 'r') as f:
