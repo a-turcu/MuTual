@@ -98,3 +98,14 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 	logger.info("Calculated best k scores")
 
 	return best_k
+
+
+def get_precomputed_closest_embeddings(scores_file, percentage=0.04):
+	sorted_scores = json.load(open(scores_file))
+	k = int(percentage * len(sorted_scores))
+	# get best k scores
+	best_k = sorted_scores[:k]
+
+	logger.info("Calculated best k scores")
+
+	return best_k

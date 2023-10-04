@@ -456,7 +456,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
         elif test:
             examples = processor.get_test_examples(args.data_dir)
         else:
-            examples = processor.get_train_examples(args.data_dir, args.percentage, args.train_mode)
+            examples = processor.get_train_examples(args.data_dir, args.percentage, args.train_mode, args.preload_similarities)
 
         if args.remove_speakers:
             logger.info(
@@ -702,6 +702,10 @@ def main():
     
     parser.add_argument(
         "--percentage", type=float, default=1.0, help="Set what percentage of mmlu to include in training (if any)"
+    )
+
+    parser.add_argument(
+        "--preload_similarities", action="store_true", help="Skip the similarity calculation and load from file instead"
     )
 
     args = parser.parse_args()
