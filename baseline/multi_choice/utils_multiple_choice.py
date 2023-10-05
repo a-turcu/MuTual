@@ -130,16 +130,13 @@ class MuTualProcessor(DataProcessor):
             if preload_similarities:
                 best_ids_path = os.path.join(data_dir2, "embeddings", "best_ids.txt")
                 best_emb_id = get_precomputed_closest_embeddings(best_ids_path)
-                #print(best_emb_id)
             else:
                 best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage)
 
             file = self._read_txt(file)
-            print(file)
             file = [f for f in file if f["id_emb"] in best_emb_id]
-            print(file)
             examples.extend(self._create_examples(file, "train"))
-
+ 
         return examples
 
     def get_dev_examples(self, data_dir):
