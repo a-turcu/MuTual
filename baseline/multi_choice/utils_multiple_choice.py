@@ -30,8 +30,7 @@ import numpy as np
 import tqdm
 from transformers import PreTrainedTokenizer
 
-from embeddings import get_closest_embeddings
-from embeddings import create_embeddings
+
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +122,9 @@ class MuTualProcessor(DataProcessor):
             file = self._read_txt(file, percentage)
             examples.extend(self._create_examples(file, "train"))
         elif train_mode == "embeddings_mix":
+
+            from embeddings import get_closest_embeddings
+            from embeddings import create_embeddings
 
             create_embeddings(split="train", data_dir=data_dir, save_dir=f"{data_dir}/embeddings")
             create_embeddings(split="auxiliary_train", data_dir=data_dir2, save_dir=f"{data_dir2}/embeddings")
