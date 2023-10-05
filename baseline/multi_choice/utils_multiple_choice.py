@@ -30,8 +30,6 @@ import numpy as np
 import tqdm
 from transformers import PreTrainedTokenizer
 
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -105,7 +103,8 @@ class DataProcessor:
 class MuTualProcessor(DataProcessor):
     """Processor for the MuTual data set."""
 
-    def get_train_examples(self, data_dir, percentage=0.04, train_mode=None):
+    def get_train_examples(self, data_dir, percentage=0.04, train_mode=None, preload_similarities=False):
+        
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
         file = os.path.join(data_dir, "train")
@@ -115,6 +114,8 @@ class MuTualProcessor(DataProcessor):
         data_dir2 = "data/mmlu"
         file = os.path.join(data_dir2, "auxiliary_train")
 
+        precomputed_embeddings_scores = "baseline/mmlu_rankings.json"
+
         if train_mode == "random_mix":
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
 
@@ -123,13 +124,16 @@ class MuTualProcessor(DataProcessor):
             examples.extend(self._create_examples(file, "train"))
         elif train_mode == "embeddings_mix":
 
-            from embeddings import get_closest_embeddings
-            from embeddings import create_embeddings
+            from embeddings import get_closest_embeddings, create_embeddings, get_precomputed_closest_embeddings
 
             create_embeddings(split="train", data_dir=data_dir, save_dir=f"{data_dir}/embeddings")
             create_embeddings(split="auxiliary_train", data_dir=data_dir2, save_dir=f"{data_dir2}/embeddings")
-
-            best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage)
+            # skip cosine similarity computation, use precomputed
+            if preload_similarities:
+                best_emb_id = get_precomputed_closest_embeddings(precomputed_embeddings_scores)
+            # include cosine similarity computation in pipeline
+            else:
+                best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage)
 
             # save best embeddings_id
             with open(f"{data_dir}/embeddings/best_emb_id.json", "w") as f:
