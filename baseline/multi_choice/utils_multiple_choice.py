@@ -30,9 +30,6 @@ import numpy as np
 import tqdm
 from transformers import PreTrainedTokenizer
 
-from embeddings import get_closest_embeddings, get_precomputed_closest_embeddings
-from embeddings import create_embeddings
-
 logger = logging.getLogger(__name__)
 
 
@@ -107,6 +104,10 @@ class MuTualProcessor(DataProcessor):
     """Processor for the MuTual data set."""
 
     def get_train_examples(self, data_dir, percentage=0.04, train_mode=None, preload_similarities=False):
+        
+        from embeddings import get_closest_embeddings, get_precomputed_closest_embeddings
+        from embeddings import create_embeddings
+
         """See base class."""
         logger.info("LOOKING AT {} train".format(data_dir))
         file = os.path.join(data_dir, "train")

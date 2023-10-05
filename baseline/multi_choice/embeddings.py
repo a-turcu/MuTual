@@ -8,11 +8,14 @@ from tqdm import trange
 from langchain.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer, util
 
+
+
 logger = logging.getLogger(__name__)
 
 def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
 	
-	from utils_multiple_choice import MuTualProcessor
+	from .utils_multiple_choice import MuTualProcessor
+
 	
 	if os.path.exists(os.path.join(save_dir, f'{split}.json')):
 		print(f'{split}.json already exists in {save_dir}.')
@@ -24,7 +27,7 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 	data = p._read_txt(os.path.join(data_dir, split))
 
 	logger.info(f"Creating {save_dir}/{split} embeddings")
-
+	print("Creating embeddings")
 	save_dict = {}
 	for line in data:
 		match = re.compile(r"\b([mfMF]) ?: ")
