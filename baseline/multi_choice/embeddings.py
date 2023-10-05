@@ -10,12 +10,11 @@ from tqdm import trange
 from sentence_transformers import SentenceTransformer, util
 
 
-
 logger = logging.getLogger(__name__)
 
 def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
 	
-	from .utils_multiple_choice import MuTualProcessor
+	from utils_multiple_choice import MuTualProcessor
 
 	
 	if os.path.exists(os.path.join(save_dir, f'{split}.json')):
@@ -83,58 +82,30 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 	emb_mutual = json.load(open(os.path.join(mutual_dir, 'train.json')))
 	emb_mmlu = json.load(open(os.path.join(mmlu_dir, 'auxiliary_train.json')))
 
-	scores = dict.fromkeys(emb_mmlu.keys(), 0)
-
-	logger.info("Calculating cosine similarity scores")
-	for key, val in emb_mmlu.items():
-		prod = itertools.product([val], emb_mutual.values())
-		for i, j in prod:
-			scores[key] += util.pytorch_cos_sim(i, j)
-
-	# divide all scores by the length of mutual
-	len_mutual = len(emb_mutual)
-	scores = {key: v/len_mutual for key, v in scores.items()}
-
-	k = int(percentage * len(scores))
-	# get best k scores
-	best_k = sorted(scores, key=scores.get, reverse=True)[:k]
-
-	logger.info("Calculated best k scores")
-
-	return best_k
-
-def get_closest_embeddings_faiss(mutual_dir, mmlu_dir, percentage=0.04):
-
-	# keys are strings; values are lists
-	emb_mutual = json.load(open(os.path.join(mutual_dir, 'train_short.json')))
-	emb_mmlu = json.load(open(os.path.join(mmlu_dir, 'auxiliary_train_short.json')))
-
-	#distances = dict.fromkeys(emb_mmlu.keys(), 0)
-	distances = dict.fromkeys(range(0, 100), (0, 0))
-
-	logger.info("Calculating euclidean distances")
-
-	vectors = np.array(list(emb_mmlu.values()), dtype=np.float32)
+	keys_mmlu = emb_mmlu.keys()
+	values_mmlu = emb_mmlu.values()
+	distances = dict.fromkeys(keys_mmlu, (0, 0))
+	keys_mmlu = list(keys_mmlu) 
+	vectors = np.array(list(values_mmlu), dtype=np.float32)
+	
 	# create FAISS index
 	dim = vectors.shape[1]
 	index = faiss.IndexFlatL2(dim)
 	faiss.normalize_L2(vectors)
+	# position in vectors = positions in index
+	
 	index.add(vectors)
-
-	# key example auxiliary_train_64685
-
-	for key, val in emb_mutual.items():
-		_val = np.array(val, dtype=np.float32)
-		_val = _val.reshape(1, -1)
-		faiss.normalize_L2(_val)
-		k = 3
-		D, I = index.search(_val, k)
-		#print(D, I)
+	logger.info("Calculating euclidean distances")
+	# starts with auxiliary_train_1
+	for _, val in emb_mutual.items():
+		ref_val = np.array(val, dtype=np.float32)
+		ref_val = ref_val.reshape(1, -1)
+		faiss.normalize_L2(ref_val)
+		k = int(0.3 * percentage * len(keys_mmlu))
+		D, I = index.search(ref_val, k)
 
 		for i, dist in zip(I[0], D[0]):
-			#key = f"auxiliary_train_{i}"
-			key = i
-			# 1 : [distance, count]
+			key = keys_mmlu[i]
 			value = (dist + distances[key][0], distances[key][1] + 1)
 			distances[key] = value
 	
@@ -143,23 +114,21 @@ def get_closest_embeddings_faiss(mutual_dir, mmlu_dir, percentage=0.04):
 		if val[1] != 0:
 			new_dict[key] = val[0] / val[1]
 
+	trunc = min(int(percentage * len(keys_mmlu)), len(new_dict.keys()))
 	
-	# sort by value
-	new_dict = dict(sorted(new_dict.items(), key=lambda item: item[1]))
-	
-	print(new_dict.items())
+	# sort by value, return only keys
+	new_dict = dict(sorted(new_dict.items(), key=lambda item: item[1], reverse=False)[:trunc])
+	ids = list(new_dict.keys())
+	# save list of ids as txt file
+	with open(os.path.join(mmlu_dir, 'best_ids.txt'), 'w') as f:
+		for item in ids:
+			f.write("%s\n" % item)
+
+	return ids
 
 
+def get_precomputed_closest_embeddings(scores_file):
 
-
-#get_closest_embeddings_faiss('data/mutual_plus/embeddings', 'data/mmlu/embeddings')
-
-def get_precomputed_closest_embeddings(scores_file, percentage=0.04):
-	sorted_scores = json.load(open(scores_file))
-	k = int(percentage * len(sorted_scores))
-	# get best k scores
-	best_k = sorted_scores[:k]
-
-	logger.info("Calculated best k scores")
-
+	with open(scores_file, 'r') as f:
+		best_k = f.read().splitlines()
 	return best_k

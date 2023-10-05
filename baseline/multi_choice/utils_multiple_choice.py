@@ -114,8 +114,6 @@ class MuTualProcessor(DataProcessor):
         data_dir2 = "data/mmlu"
         file = os.path.join(data_dir2, "auxiliary_train")
 
-        precomputed_embeddings_scores = "baseline/mmlu_rankings.json"
-
         if train_mode == "random_mix":
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
 
@@ -128,19 +126,18 @@ class MuTualProcessor(DataProcessor):
 
             create_embeddings(split="train", data_dir=data_dir, save_dir=f"{data_dir}/embeddings")
             create_embeddings(split="auxiliary_train", data_dir=data_dir2, save_dir=f"{data_dir2}/embeddings")
-            # skip cosine similarity computation, use precomputed
+
             if preload_similarities:
-                best_emb_id = get_precomputed_closest_embeddings(precomputed_embeddings_scores)
-            # include cosine similarity computation in pipeline
+                best_ids_path = os.path.join(data_dir2, "embeddings", "best_ids.txt")
+                best_emb_id = get_precomputed_closest_embeddings(best_ids_path)
+                #print(best_emb_id)
             else:
                 best_emb_id = get_closest_embeddings(f"{data_dir}/embeddings", f"{data_dir2}/embeddings", percentage)
 
-            # save best embeddings_id
-            with open(f"{data_dir}/embeddings/best_emb_id.json", "w") as f:
-                json.dump(best_emb_id, f)
-
             file = self._read_txt(file)
+            print(file)
             file = [f for f in file if f["id_emb"] in best_emb_id]
+            print(file)
             examples.extend(self._create_examples(file, "train"))
 
         return examples
