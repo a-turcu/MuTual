@@ -40,34 +40,31 @@ CREATE_DB_CREATION_HELP_PANEL = "Embedding creation options"
 def create_db(
     dataset: Annotated[
         MCDataset,
-        Argument(help="Dataset retrieved from [b i]HuggingFace datasets[/b i]"),
+        Argument(help="Dataset retrieved from [b i]HuggingFace datasets[/b i]."),
     ],
     split: Annotated[
         MCDatasetSplit,
-        Argument(help="Dataset split from the chosen [b i]HuggingFace dataset[/b i]"),
+        Argument(help="Dataset split from the chosen [b i]HuggingFace dataset[/b i]."),
     ],
-    index_name: Annotated[
+    index: Annotated[
         str,
-        Option(
-            help="[green]FAISS[/green] database index for embedded collection, (defaults to --db-save-dir value)"
-        ),
-    ] = None,
+        Option(help="[green]FAISS[/green] database index for embedded collection."),
+    ],
     embedding_model: Annotated[
         str,
         Option(
-            help="A pretrained [green]SentenceTransformer[/green] model from https://www.sbert.net/docs/pretrained_models.html"
+            help="A pretrained [green]SentenceTransformer[/green] model from https://www.sbert.net/docs/pretrained_models.html."
         ),
-    ] = consts.DEFAULT_SBERT_MODEL,
+    ] = consts.DEFAULT_EMBEDDING_MODEL,
     db_save_dir: Annotated[
         Path,
-        Option(help="Folder where to store the [green]FAISS[/green] database"),
-    ] = conf.VECTORDB_DEFAULT_DIR,
+        Option(help="Folder where to store the [green]FAISS[/green] database."),
+    ] = conf.VECTORDB_DIR,
     overwrite: Annotated[
         bool,
         Option(
-            help="Whether to overwrite [green]FAISS[/green] database if it already exists (creates new embeddings)",
+            help="Whether to overwrite [green]FAISS[/green] database if it already exists (creates new embeddings).",
             rich_help_panel=CREATE_DB_CREATION_HELP_PANEL,
-            confirmation_prompt=True,
         ),
     ] = False,
     batch_size: Annotated[
@@ -76,14 +73,14 @@ def create_db(
             help="Batch size for embedding creation, useful when embedding large amounts of text. A negative value prevents batching.",
             rich_help_panel=CREATE_DB_CREATION_HELP_PANEL,
         ),
-    ] = -1,
-    remove_speaker_tags: Annotated[
+    ] = int(5e3),
+    speaker_tags: Annotated[
         bool,
         Option(
-            help="Whether to strip [M:F] dialogue tags from [b i]MuTual[/b i] dialogues.",
+            help="Whether to strip '[MF]:' tags from [b i]MuTual[/b i] dialogues.",
             rich_help_panel=CREATE_DB_CREATION_HELP_PANEL,
         ),
-    ] = False,
+    ] = True,
 ) -> VectorStore:
     """
     Embed texts with a [b]SentenceTransformer[/b] model and store into a [b]FAISS[/b] database.
@@ -92,24 +89,24 @@ def create_db(
     split_name = split.value
     logger.info("Loading: %s split: %s", dataset.value, split.value)
     if dataset.value.startswith("mutual"):
-        dataset = load_dataset("lighteval/mutual_harness", name=dataset.value)
-        if remove_speaker_tags:
+        dataset = load_dataset(consts.MUTUAL_HF_PATH, name=dataset.value)
+        if speaker_tags:
             logger.info("MuTual: remove speaker tags")
         split_articles = utils.preprocess_mutual(
-            dataset[split_name], remove_speaker_tags=remove_speaker_tags
+            dataset[split_name], remove_speaker_tags=speaker_tags
         )["article"]
     else:
         # mmlu stores 'train' split under a different key than MuTual; it also
         # has a 'dev' split, but we don't use it
         if split_name == "train":
             split_name = "auxiliary_train"
-        dataset = load_dataset("cais/mmlu", name=dataset.value)
+        dataset = load_dataset(consts.MMLU_HF_PATH, name=dataset.value)
         split_articles = dataset[split_name]["question"]
     return crud.create_or_load_faiss(
         db_save_dir,
+        index,
         HuggingFaceEmbeddings(model_name=embedding_model),
         dataset=split_articles,
-        index=index_name,
         overwrite=overwrite,
         batch_size=batch_size,
     )
@@ -119,24 +116,22 @@ def create_db(
 def load_db(
     db_load_dir: Annotated[
         Path,
-        Option(help="Folder where to find the [green]FAISS[/green] database"),
+        Option(help="Folder where to find the [green]FAISS[/green] database."),
     ],
     index_name: Annotated[
         str,
-        Option(
-            help="[green]FAISS[/green] database index for embedded collection (defaults to --db-load-dir value)"
-        ),
-    ] = None,
+        Option(help="[green]FAISS[/green] index of embedded collection."),
+    ],
     embedding_model: Annotated[
         str,
         Option(
-            help="The [green]SentenceTransformer[/green] model used to create the db"
+            help="The [green]SentenceTransformer[/green] model used to embed the documents in the db."
         ),
-    ] = consts.DEFAULT_SBERT_MODEL,
+    ] = consts.DEFAULT_EMBEDDING_MODEL,
 ) -> VectorStore:
     """
     Load a [b]FAISS[/b] database from disk.
     """
     return crud.create_or_load_faiss(
-        db_load_dir, HuggingFaceEmbeddings(model_name=embedding_model), index=index_name
+        db_load_dir, index_name, HuggingFaceEmbeddings(model_name=embedding_model)
     )

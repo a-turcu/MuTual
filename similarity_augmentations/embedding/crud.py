@@ -12,12 +12,16 @@ logger = utils.get_logger(name=__name__)
 
 
 def batch_create_embeddings(
-    embedder: Embeddings, dataset: List[str], batch_size: int
+    dataset: List[str], embedder: Embeddings, batch_size: int
 ) -> np.ndarray:
     dataset_size = len(dataset)
-    assert (
-        batch_size <= dataset_size
-    ), f"Batch size {batch_size} greater than dataset size {dataset_size}"
+    if batch_size > dataset_size:
+        logger.warning(
+            "Batch size %d greater than dataset size %d, fallback to dataset size",
+            batch_size,
+            dataset_size,
+        )
+        batch_size = dataset_size
     embeddings = np.zeros((dataset_size, embedder.client[1].word_embedding_dimension))
     for i in trange(0, dataset_size, batch_size, desc="Embedding dataset..."):
         end = min(i + batch_size, dataset_size)
@@ -25,33 +29,32 @@ def batch_create_embeddings(
     return embeddings
 
 
+# create if index does not exist or exists and override is true, else load
 def create_or_load_faiss(
     savedir: Union[str, Path],
+    index_name: str,
     embedder: Embeddings,
     dataset: Optional[List[str]] = None,
-    index: Optional[str] = None,
     overwrite: bool = False,
     batch_size: int = -1,
 ) -> VectorStore:
+    assert isinstance(index_name, str)
     savedir = Path(savedir)
-    if not index:
-        index = savedir.stem  # when not given, assume index name is leaf folder name
-    if savedir.is_dir() and not overwrite:
-        logger.info(
-            "Loading FAISS index '%s' from '%s' (overwrite: %s)",
-            index,
-            str(savedir),
-            overwrite,
-        )
-        return FAISS.load_local(savedir, embedder, index)
-    assert (
-        dataset is not None
-    ), f"Cannot load from {str(savedir)!r} or invalid dataset: {dataset}"
+    faiss_local_files = [f"{index_name}.faiss", f"{index_name}.pkl"]
+    savedir_faiss_glob = [e.name for e in savedir.glob(f"{index_name}.*")]
+    if (
+        savedir.is_dir()
+        and all(f in savedir_faiss_glob for f in faiss_local_files)
+        and not overwrite
+    ):
+        logger.info("Loading FAISS index '%s' from '%s'", index_name, str(savedir))
+        return FAISS.load_local(savedir, embedder, index_name)
+    assert dataset is not None, f"Pass a dataset for embedding database creation."
     logger.info("Creating FAISS db (overwrite: %s)", overwrite)
     if batch_size < 0:
         batch_size = len(dataset)
     embeddings = batch_create_embeddings(dataset, embedder, batch_size)
     db = FAISS.from_embeddings(list(zip(dataset, embeddings.tolist())), embedder)
-    db.save_local(savedir, index)
-    logger.info("Saved FAISS index '%s' to '%s'", index, str(savedir))
+    db.save_local(savedir, index_name)
+    logger.info("Saved FAISS index '%s' to '%s'", index_name, str(savedir))
     return db

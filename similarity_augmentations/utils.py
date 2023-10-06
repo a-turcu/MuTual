@@ -24,24 +24,25 @@ def preprocess_mutual(
     mutual: Union[Dataset, DatasetDict], remove_speaker_tags: bool = False
 ) -> Union[Dataset, DatasetDict]:
     """
-    Preprocess MuTual(+) dataset.
+    Preprocess MuTual dataset.
 
     Parameters
     ----------
-    `mutual`: MuTual(+) dataset downloaded from HuggingFace; either a single
+    `mutual`: MuTual dataset downloaded from HuggingFace; either a single
         split e.g. 'train' or the full `datasets.DatasetDict`.
 
     `remove_speaker_tags`: Whether to remove '[MF]:' tags from dialogues and continuations.
 
     Returns
     -------
-    A MuTual(+) split (or all of the splits) where
+    The MuTual dataset with
 
-    - feature 'answers' is renamed to 'labels'
-    - feature 'labels' is cast to `datasets.ClassLabel`
-    - unused feature 'split' is removed
-    - speaker tags are optionally removed
+    - feature 'answers' renamed to 'labels'
+    - feature 'labels' cast to numeric `datasets.ClassLabel`
+    - dropped unused feature 'split'
+    - speaker tags optionally removed
     """
+
     def tags_processor(datapoints: Dict[str, List]) -> Dict[str, List]:
         ret = [
             (match.sub("", dialogue), match.sub("", "\n".join(choices)).split("\n"))

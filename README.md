@@ -5,7 +5,7 @@ With Conda or (Micro)Mamba
 ```sh
 micromamba install -f env.yml
 ```
-If you also want to finetune a
+If you also want to fine-tune a
 [multiple choice Transformer model](https://huggingface.co/docs/transformers/model_doc/auto#transformers.AutoModelForMultipleChoice)
 on MuTual(+) with a subset of similar datapoints from MMLU, install either `faiss-cpu` or `faiss-gpu`, e.g. for a GPU
 system run:
@@ -26,7 +26,7 @@ python -m similarity_augmentations.main <command> <subcommand> --help
 ```
 
 ### Generating a FAISS vector database
-We compare the performance of a multiclass classifier finetuned on MuTual alone to that of a model which saw data
+We compare the performance of a multiclass classifier fine-tuned on MuTual alone to that of a model which saw data
 augmentation. To this aim, we first create a
 [FAISS](https://huggingface.co/datasets/lighteval/mutual_harness/viewer/mutual_plus/train) database for MMLU and MuTual,
 which helps us to perform similarity search in embedding space. The minimal command to create e.g. a MuTual(+) database
