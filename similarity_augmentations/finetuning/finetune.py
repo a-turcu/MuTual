@@ -107,6 +107,15 @@ def evaluate_rankings(eval_predictions: EvalPrediction) -> Dict[str, float]:
     return recalls_dict | {"MRR": inverse_ranks.mean().item()}
 
 
+def unify_mutual_mmlu_structure(mmlu: Dataset) -> Dataset:
+    """Rename MMLU features to same ones of preprocessed MuTual."""
+    if "subject" in mmlu.features:
+        mmlu = mmlu.remove_columns("subject")  # unused column
+    # normalize the feature names to MuTual's ones
+    to_mutual_map = {"answer": "labels", "choices": "options", "question": "article"}
+    return mmlu.rename_columns(to_mutual_map)
+
+
 def merge_mutual_mmlu(
     mutual: Dataset, mmlu: Dataset, mmlu_merge_ids: Iterable[int] = -1
 ) -> Dataset:
@@ -128,11 +137,7 @@ def merge_mutual_mmlu(
     from MMLU.
     """
     assert "labels" in mutual.features, "Call `utils.preprocess_mutual(mutual)` first"
-    if "subject" in mmlu.features:
-        mmlu = mmlu.remove_columns("subject")  # unused column
-    # normalize the feature names to MuTual's ones
-    to_mutual_map = {"answer": "labels", "choices": "options", "question": "article"}
-    mmlu = mmlu.rename_columns(to_mutual_map)
+    # TODO check that feature names are the same before merging, else call unify
     if isinstance(mmlu_merge_ids, int) and mmlu_merge_ids < 0:
         mmlu_merge_ids = range(len(mmlu))
     return concatenate_datasets([mutual, mmlu.select(mmlu_merge_ids)])
@@ -146,7 +151,7 @@ def build_trainer(
     tokenizer: PreTrainedTokenizerBase,
     compute_metrics_fn: Callable[[EvalPrediction], Dict] = evaluate_rankings,
     batch_size: int = 16,
-    overwrite: bool = False
+    overwrite: bool = False,
 ) -> Trainer:
     train_args = TrainingArguments(
         model_save_dir,
@@ -155,12 +160,12 @@ def build_trainer(
         learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=3,
+        num_train_epochs=10,
         weight_decay=0.01,
         # push_to_hub=True,
     )
-    # NOTE If the dataset is already tokenized it shouldn't be used, still
-    # useful to insert into checkpoints and use when loading the model
+    # NOTE If the dataset is already tokenized tokenizer shouldn't be used,
+    # still useful to insert into checkpoints and use when loading the model
     return Trainer(
         model,
         train_args,

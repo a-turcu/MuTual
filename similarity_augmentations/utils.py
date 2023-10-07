@@ -20,8 +20,11 @@ def get_logger(
     return logger
 
 
+logger = get_logger(name=__name__)
+
+
 def preprocess_mutual(
-    mutual: Union[Dataset, DatasetDict], remove_speaker_tags: bool = False
+    mutual: Union[Dataset, DatasetDict], speaker_tags: bool
 ) -> Union[Dataset, DatasetDict]:
     """
     Preprocess MuTual dataset.
@@ -31,7 +34,7 @@ def preprocess_mutual(
     `mutual`: MuTual dataset downloaded from HuggingFace; either a single
         split e.g. 'train' or the full `datasets.DatasetDict`.
 
-    `remove_speaker_tags`: Whether to remove '[MF]:' tags from dialogues and continuations.
+    `speaker_tags`: Whether to remove '[MF]:' tags from dialogues and continuations.
 
     Returns
     -------
@@ -64,7 +67,8 @@ def preprocess_mutual(
         mutual = cast_fn(mutual)
     if "id" in features:
         mutual = mutual.remove_columns("id")
-    if remove_speaker_tags:
+    if not speaker_tags:
+        logger.info("Removing speaker tags")
         match = re.compile(r"\b([mfMF]) ?: ")
         mutual = mutual.map(tags_processor, batched=True)
     return mutual

@@ -55,6 +55,6 @@ def create_or_load_faiss(
         batch_size = len(dataset)
     embeddings = batch_create_embeddings(dataset, embedder, batch_size)
     db = FAISS.from_embeddings(list(zip(dataset, embeddings.tolist())), embedder)
+    logger.info("Saving FAISS index '%s' to '%s'", index_name, str(savedir))
     db.save_local(savedir, index_name)
-    logger.info("Saved FAISS index '%s' to '%s'", index_name, str(savedir))
     return db

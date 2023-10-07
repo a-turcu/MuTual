@@ -1,5 +1,6 @@
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 from datasets import load_dataset
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -33,7 +34,7 @@ def embedding_help():
     """Create and retrieve text embeddings."""
 
 
-CREATE_DB_CREATION_HELP_PANEL = "Embedding creation options"
+CREATE_DB_CREATION_PANEL = "Embedding creation options"
 
 
 @app.command()
@@ -47,9 +48,11 @@ def create_db(
         Argument(help="Dataset split from the chosen [b i]HuggingFace dataset[/b i]."),
     ],
     index: Annotated[
-        str,
-        Option(help="[green]FAISS[/green] database index for embedded collection."),
-    ],
+        Optional[str],
+        Option(
+            help=f"[green]FAISS[/green] database index for embedded collection, defaults to [green i]'{conf.VECTORDB_DIR}/DATASET_SPLIT_EMBEDDING-MODEL'[/green i]."
+        ),
+    ] = None,
     embedding_model: Annotated[
         str,
         Option(
@@ -64,21 +67,21 @@ def create_db(
         bool,
         Option(
             help="Whether to overwrite [green]FAISS[/green] database if it already exists (creates new embeddings).",
-            rich_help_panel=CREATE_DB_CREATION_HELP_PANEL,
+            rich_help_panel=CREATE_DB_CREATION_PANEL,
         ),
     ] = False,
     batch_size: Annotated[
         int,
         Option(
             help="Batch size for embedding creation, useful when embedding large amounts of text. A negative value prevents batching.",
-            rich_help_panel=CREATE_DB_CREATION_HELP_PANEL,
+            rich_help_panel=CREATE_DB_CREATION_PANEL,
         ),
     ] = int(5e3),
     speaker_tags: Annotated[
         bool,
         Option(
             help="Whether to strip '[MF]:' tags from [b i]MuTual[/b i] dialogues.",
-            rich_help_panel=CREATE_DB_CREATION_HELP_PANEL,
+            rich_help_panel=CREATE_DB_CREATION_PANEL,
         ),
     ] = True,
 ) -> VectorStore:
@@ -89,22 +92,22 @@ def create_db(
     split_name = split.value
     logger.info("Loading: %s split: %s", dataset.value, split.value)
     if dataset.value.startswith("mutual"):
-        dataset = load_dataset(consts.MUTUAL_HF_PATH, name=dataset.value)
+        hf_dataset = load_dataset(consts.MUTUAL_HF_PATH, name=dataset.value)
         if speaker_tags:
             logger.info("MuTual: remove speaker tags")
         split_articles = utils.preprocess_mutual(
-            dataset[split_name], remove_speaker_tags=speaker_tags
+            hf_dataset[split_name], speaker_tags=speaker_tags
         )["article"]
     else:
         # mmlu stores 'train' split under a different key than MuTual; it also
         # has a 'dev' split, but we don't use it
         if split_name == "train":
             split_name = "auxiliary_train"
-        dataset = load_dataset(consts.MMLU_HF_PATH, name=dataset.value)
-        split_articles = dataset[split_name]["question"]
+        hf_dataset = load_dataset(consts.MMLU_HF_PATH, name="all")
+        split_articles = hf_dataset[split_name]["question"]
     return crud.create_or_load_faiss(
         db_save_dir,
-        index,
+        index or f"{dataset.value}_{split_name}_{embedding_model}",
         HuggingFaceEmbeddings(model_name=embedding_model),
         dataset=split_articles,
         overwrite=overwrite,
@@ -114,14 +117,14 @@ def create_db(
 
 @app.command()
 def load_db(
-    db_load_dir: Annotated[
-        Path,
-        Option(help="Folder where to find the [green]FAISS[/green] database."),
-    ],
-    index_name: Annotated[
+    index: Annotated[
         str,
         Option(help="[green]FAISS[/green] index of embedded collection."),
     ],
+    db_load_dir: Annotated[
+        Path,
+        Option(help="Folder where to find the [green]FAISS[/green] database."),
+    ] = conf.VECTORDB_DIR,
     embedding_model: Annotated[
         str,
         Option(
@@ -133,5 +136,5 @@ def load_db(
     Load a [b]FAISS[/b] database from disk.
     """
     return crud.create_or_load_faiss(
-        db_load_dir, index_name, HuggingFaceEmbeddings(model_name=embedding_model)
+        db_load_dir, index, HuggingFaceEmbeddings(model_name=embedding_model)
     )

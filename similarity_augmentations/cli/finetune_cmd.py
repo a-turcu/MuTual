@@ -38,7 +38,9 @@ def finetune_help():
     """Fine-tune a multiclass classifier on [b i]MuTual[/b i]."""
 
 
-# TODO split args in those for data augmentation and those for training
+DATA_AUGMENTATION_PANEL = "Data augmentation options"
+
+
 @app.command()
 def fine_tune(
     model_name: Annotated[
@@ -47,32 +49,18 @@ def fine_tune(
             help="A pretrained [i]encoder[/i] Transformer checkpoint compatible with architectures model listed at https://www.sbert.net/docs/pretrained_models.html."
         ),
     ] = consts.DEFAULT_MC_MODEL,
-    scoring_strategy: Annotated[
-        Optional[DataSelectionStrategy],
-        Option(
-            help="Distance metric for similarity scoring between [b i]MuTual[/b i] and [b i]MMLU[/b i]."
-        ),
-    ] = DataSelectionStrategy.random.value,
-    percentage: Annotated[
-        float,
-        Option(
-            "--percentage",
-            "-p",
-            help="Proportion of [b i]MMLU[/b i] datapoints added to [b i]MuTual[/b i]; by default, none is added (baseline).",
-        ),
-    ] = 0.0,
+    mutual_version: Annotated[
+        MuTualSubset, Option(help="The MuTual version to fine-tune on.")
+    ] = MuTualSubset.mutual_plus.value,
     speaker_tags: Annotated[
         bool,
         Option(help="Whether to strip '[MF]:' tags from [b i]MuTual[/b i] dialogues."),
     ] = True,
     seed: Annotated[int, Option(help="Reproducibility seed.")] = consts.SEED,
-    mutual_version: Annotated[
-        MuTualSubset, Option(help="The MuTual version to fine-tune on.")
-    ] = MuTualSubset.mutual_plus.value,
     model_save_dir: Annotated[
         Optional[Path],
         Option(
-            help=f"Trainer output folder, defaults to [green i]'{str(conf.FINETUNED_MODELS_DIR)}/model-name value'[/green i]."
+            help=f"Trainer output folder, defaults to [green i]'{str(conf.FINETUNED_MODELS_DIR)}/MODEL-NAME'[/green i]."
         ),
     ] = None,
     overwrite: Annotated[
@@ -81,61 +69,94 @@ def fine_tune(
             help="Whether to overwrite --model-save-dir if it already exists.",
         ),
     ] = False,
+    scoring_strategy: Annotated[
+        Optional[DataSelectionStrategy],
+        Option(
+            help="Distance metric for similarity scoring between [b i]MuTual[/b i] and [b i]MMLU[/b i].",
+            rich_help_panel=DATA_AUGMENTATION_PANEL,
+        ),
+    ] = DataSelectionStrategy.random.value,
+    percentage: Annotated[
+        float,
+        Option(
+            "--percentage",
+            "-p",
+            help="Proportion of [b i]MMLU[/b i] datapoints added to [b i]MuTual[/b i]; by default, none is added (baseline).",
+            rich_help_panel=DATA_AUGMENTATION_PANEL,
+        ),
+    ] = 0.0,
     faiss_db_dir: Annotated[
         Path,
         Option(
-            help=f"Folder with FAISS files for [b i]MuTual[/b i] and [b i]MMLU[/b i] embedding indexes. [green b]Accessed[/green b] when [green i]percentage > 0 and scoring-strategy != {DataSelectionStrategy.random.value!r}[/green i]."
+            help=f"Folder with FAISS files for [b i]MuTual[/b i] and [b i]MMLU[/b i] embedding indexes. [green b]Accessed[/green b] when [green i]PERCENTAGE > 0 and SCORING-STRATEGY != {DataSelectionStrategy.random.value!r}[/green i].",
+            rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
     ] = conf.VECTORDB_DIR,
     mutual_index: Annotated[
-        Optional[str], Option(help="FAISS index name of MuTual embeddings.")
+        Optional[str],
+        Option(
+            help="FAISS index name of MuTual embeddings.",
+            rich_help_panel=DATA_AUGMENTATION_PANEL,
+        ),
     ] = None,
     mmlu_index: Annotated[
-        Optional[str], Option(help="FAISS index name of MMLU embeddings.")
+        Optional[str],
+        Option(
+            help="FAISS index name of MMLU embeddings.",
+            rich_help_panel=DATA_AUGMENTATION_PANEL,
+        ),
     ] = None,
 ):
     """Run fine-tuning, possibly with data augmentation."""
     mutual = load_dataset(consts.MUTUAL_HF_PATH, name=mutual_version.value)
-    logger.info("Preprocess MuTual, remove speaker tags: %s", speaker_tags)
-    mutual = utils.preprocess_mutual(mutual, remove_speaker_tags=speaker_tags)
-    mmlu = load_dataset(consts.MMLU_HF_PATH, name="all")
+    logger.info("Preprocess MuTual")
+    mutual = utils.preprocess_mutual(mutual, speaker_tags=speaker_tags)
 
-    # tokenize all datasets first so that they can be cached once
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    logger.info("Tokenizing all MuTual splits")
     mutual_tokenized = finetune.tokenize_dataset(mutual, tokenizer)
-    mmlu_train_tokenized = finetune.tokenize_dataset(mmlu["auxiliary_train"], tokenizer)
 
-    mmlu_add_ids = []
-    if scoring_strategy == DataSelectionStrategy.random:
-        # random augmentation, or baseline if percentage == 0
-        ...
-    elif percentage > 0.0:
-        # need valid FAISS indices
-        assert (
-            mutual_index and mmlu_index
-        ), f"Pass MuTual and MMLU FAISS index names when scoring_strategy != {DataSelectionStrategy.random.value:r} and percentage > 0."
-        embedder = HuggingFaceEmbeddings(model_name=model_name)
-        mutual_db = crud.create_or_load_faiss(faiss_db_dir, mutual_index, embedder)
-        mmlu_db = crud.create_or_load_faiss(faiss_db_dir, mmlu_index, embedder)
-        # now get the closest points from MMLU according to scoring_strategy
-    logger.info(
-        "Add %d MMLU datapoints (proportion: %.3f) found with strategy: '%s'",
-        len(mmlu_add_ids),
-        percentage,
-        scoring_strategy.value,
-    )
-    train_split_tokenized = finetune.merge_mutual_mmlu(
-        mutual_tokenized["train"], mmlu_train_tokenized, mmlu_merge_ids=mmlu_add_ids
-    )
+    train_split_tokenized = mutual_tokenized["train"]
+    if percentage > 0.0:
+        logger.info("DATA AUGMENTATION")
+        mmlu_add_ids = []
+        mmlu = load_dataset(consts.MMLU_HF_PATH, name="all")["auxiliary_train"]
+        # make same feature names to use same tokenization function
+        mmlu = finetune.unify_mutual_mmlu_structure(mmlu)
+        logger.info("Tokenizing MMLU")
+        mmlu_train_tokenized = finetune.tokenize_dataset(mmlu, tokenizer)
+        if scoring_strategy == DataSelectionStrategy.random:
+            # random augmentation, or baseline if percentage == 0
+            ...
+        else:  # need valid FAISS indices here
+            assert (
+                mutual_index and mmlu_index
+            ), f"Pass MuTual and MMLU FAISS index names when scoring_strategy != {DataSelectionStrategy.random.value:r} and percentage > 0."
+            embedder = HuggingFaceEmbeddings(model_name=model_name)
+            mutual_db = crud.create_or_load_faiss(faiss_db_dir, mutual_index, embedder)
+            mmlu_db = crud.create_or_load_faiss(faiss_db_dir, mmlu_index, embedder)
+            # now get the closest points from MMLU according to scoring_strategy
+            ...
+        logger.info(
+            "Add %d MMLU datapoints (proportion: %.3f) with strategy: '%s'",
+            len(mmlu_add_ids),
+            percentage,
+            scoring_strategy.value,
+        )
+        train_split_tokenized = finetune.merge_mutual_mmlu(
+            mutual_tokenized["train"], mmlu_train_tokenized, mmlu_merge_ids=mmlu_add_ids
+        )
 
     set_seed(seed)
     trainer = finetune.build_trainer(
         train_split_tokenized,
         mutual_tokenized["validation"],
-        model_save_dir,
-        AutoModelForMultipleChoice(model_name),
+        model_save_dir or conf.FINETUNED_MODELS_DIR / model_name,
+        AutoModelForMultipleChoice.from_pretrained(model_name),
         tokenizer,
         overwrite=overwrite,
     )
     trainer.train()
-    # TODO save metrics
+    # more or less ~5 minutes per epoch
+    # TODO properly save metrics and best checkpoints
+    # TODO early stopping callback?
