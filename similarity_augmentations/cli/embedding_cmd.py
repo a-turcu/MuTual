@@ -50,7 +50,7 @@ def create_db(
     index: Annotated[
         Optional[str],
         Option(
-            help=f"[green]FAISS[/green] database index for embedded collection, defaults to [green i]'{conf.VECTORDB_DIR}/DATASET_SPLIT_EMBEDDING-MODEL'[/green i]."
+            help=f"[green]FAISS[/green] database index for embedded collection, defaults to [green i]'{conf.VECTORDB_DIR}/DATASET__SPLIT__EMBEDDING-MODEL'[/green i]."
         ),
     ] = None,
     embedding_model: Annotated[
@@ -107,7 +107,7 @@ def create_db(
         split_articles = hf_dataset[split_name]["question"]
     return crud.create_or_load_faiss(
         db_save_dir,
-        index or f"{dataset.value}_{split_name}_{embedding_model}",
+        index or f"{dataset.value}__{split_name}__{embedding_model}",
         HuggingFaceEmbeddings(model_name=embedding_model),
         dataset=split_articles,
         overwrite=overwrite,
