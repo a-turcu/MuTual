@@ -165,5 +165,6 @@ cache
 runs
 output
 vector_db
+finetuned_models
 
 .vscode
