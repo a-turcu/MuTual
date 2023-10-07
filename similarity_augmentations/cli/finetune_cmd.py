@@ -2,27 +2,18 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 from datasets import load_dataset
-from langchain.embeddings import HuggingFaceEmbeddings
 from transformers import AutoModelForMultipleChoice, AutoTokenizer, set_seed
 from typer import Option, Typer
 from typing_extensions import Annotated
 
 from similarity_augmentations import conf, consts, utils
-from similarity_augmentations.embedding import crud
-from similarity_augmentations.finetuning import finetune
+from similarity_augmentations.finetuning import augmentations, finetune
+from similarity_augmentations.finetuning.augmentations import \
+    DataSelectionStrategy
 
 logger = utils.get_logger(name=__name__)
-
-
-# NOTE copied from LangChain to add 'random'
-class DataSelectionStrategy(str, Enum):
-    euclidean_distance = "euclidean-distance"
-    max_inner_product = "max-inner-product"
-    dot_product = "dot-product"
-    jaccard = "jaccard"
-    cosine = "cosine"
-    random = "random"
 
 
 class MuTualSubset(str, Enum):
@@ -39,6 +30,9 @@ def finetune_help():
 
 
 DATA_AUGMENTATION_PANEL = "Data augmentation options"
+
+# TODO add tokenizaton cache dir, keeps recreating tokenized datasets when they
+# exist already, slow for MMLU
 
 
 @app.command()
@@ -81,7 +75,7 @@ def fine_tune(
         Option(
             "--percentage",
             "-p",
-            help="Proportion of [b i]MMLU[/b i] datapoints added to [b i]MuTual[/b i]; by default, none is added (baseline).",
+            help="Proportion of [b i]MMLU[/b i] datapoints added to [b i]MuTual[/b i] [green i]relative to MuTual size[/green i]. By default, none is added.",
             rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
     ] = 0.0,
@@ -115,42 +109,52 @@ def fine_tune(
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     logger.info("Tokenizing all MuTual splits")
     mutual_tokenized = finetune.tokenize_dataset(mutual, tokenizer)
+    mutual_train, mutual_eval = (
+        mutual_tokenized["train"],
+        mutual_tokenized["validation"],
+    )
 
-    train_split_tokenized = mutual_tokenized["train"]
-    if percentage > 0.0:
-        logger.info("DATA AUGMENTATION")
-        mmlu_add_ids = []
+    train_split = mutual_train
+    if percentage > 0:
+        logger.info("***** DATA AUGMENTATION *****")
+        mmlu_add_ids = []  # NOTE remove afterwards
         mmlu = load_dataset(consts.MMLU_HF_PATH, name="all")["auxiliary_train"]
         # make same feature names to use same tokenization function
         mmlu = finetune.unify_mutual_mmlu_structure(mmlu)
         logger.info("Tokenizing MMLU")
-        mmlu_train_tokenized = finetune.tokenize_dataset(mmlu, tokenizer)
+        mmlu_train = finetune.tokenize_dataset(mmlu, tokenizer)
+        scaled_percentage = len(mutual_train) * percentage / len(mmlu_train)
         if scoring_strategy == DataSelectionStrategy.random:
-            # random augmentation, or baseline if percentage == 0
-            ...
+            mmlu_add_ids = augmentations.random_augmentation(
+                scaled_percentage, mmlu_train, np.random.default_rng(seed)
+            )
         else:  # need valid FAISS indices here
             assert (
                 mutual_index and mmlu_index
             ), f"Pass MuTual and MMLU FAISS index names when scoring_strategy != {DataSelectionStrategy.random.value:r} and percentage > 0."
-            embedder = HuggingFaceEmbeddings(model_name=model_name)
-            mutual_db = crud.create_or_load_faiss(faiss_db_dir, mutual_index, embedder)
-            mmlu_db = crud.create_or_load_faiss(faiss_db_dir, mmlu_index, embedder)
-            # now get the closest points from MMLU according to scoring_strategy
-            ...
+            mmlu_add_ids = augmentations.embedding_similarity_augmentation(
+                scaled_percentage,
+                scoring_strategy,
+                faiss_db_dir,
+                mutual_index,
+                mmlu_index,
+                model_name,
+            )
         logger.info(
-            "Add %d MMLU datapoints (proportion: %.3f) with strategy: '%s'",
+            "Added %d MMLU datapoints (p: %.3f scaled: %.4f) with strategy: '%s'",
             len(mmlu_add_ids),
             percentage,
+            scaled_percentage,
             scoring_strategy.value,
         )
-        train_split_tokenized = finetune.merge_mutual_mmlu(
-            mutual_tokenized["train"], mmlu_train_tokenized, mmlu_merge_ids=mmlu_add_ids
+        train_split = finetune.merge_mutual_mmlu(
+            mutual_train, mmlu_train, mmlu_merge_ids=mmlu_add_ids
         )
 
     set_seed(seed)
     trainer = finetune.build_trainer(
-        train_split_tokenized,
-        mutual_tokenized["validation"],
+        train_split,
+        mutual_eval,
         model_save_dir or conf.FINETUNED_MODELS_DIR / model_name,
         AutoModelForMultipleChoice.from_pretrained(model_name),
         tokenizer,

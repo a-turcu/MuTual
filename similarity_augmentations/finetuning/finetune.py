@@ -150,7 +150,7 @@ def build_trainer(
     model: AutoModelForMultipleChoice,
     tokenizer: PreTrainedTokenizerBase,
     compute_metrics_fn: Callable[[EvalPrediction], Dict] = evaluate_rankings,
-    batch_size: int = 16,
+    batch_size: int = 32,
     overwrite: bool = False,
 ) -> Trainer:
     train_args = TrainingArguments(
