@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
@@ -10,6 +11,10 @@ from transformers import (AutoModelForMultipleChoice, PreTrainedTokenizerBase,
                           Trainer, TrainingArguments)
 from transformers.tokenization_utils_base import PaddingStrategy
 from transformers.trainer_utils import EvalPrediction
+
+from similarity_augmentations import utils
+
+logger = utils.get_logger(name=__name__)
 
 
 # https://github.com/huggingface/transformers/blob/87499420bff74122a404d1bb0db2e57e6d1ecfe9/examples/pytorch/multiple-choice/run_swag.py#L175
@@ -143,7 +148,7 @@ def merge_mutual_mmlu(
     return concatenate_datasets([mutual, mmlu.select(mmlu_merge_ids)])
 
 
-def build_trainer(
+def finetune(
     train_dataset: Dataset,
     eval_dataset: Dataset,
     epochs: int,
@@ -152,22 +157,35 @@ def build_trainer(
     model: AutoModelForMultipleChoice,
     tokenizer: PreTrainedTokenizerBase,
     compute_metrics_fn: Callable[[EvalPrediction], Dict] = evaluate_rankings,
-    overwrite: bool = False,
+    metric_for_best_model: str = "MRR",
+    resume_checkpoint: Optional[str] = None,
 ) -> Trainer:
+    # make sure that cyclic evaluation and logging is done even if the dataset
+    # is small (at least one)
+    n_train_step = int(math.ceil(len(train_dataset) / batch_size) * epochs)
+    cycle_steps = min(TrainingArguments.logging_steps, n_train_step)
+    # steps_dict = {f"{p}_steps": cycle_steps for p in ["logging", "eval", "save"]}
+    steps_dict = {f"{p}_steps": 20 for p in ["logging", "eval", "save"]}
+    logger.info(
+        "Total training steps: %d, log-eval-save steps: %d",
+        n_train_step,
+        cycle_steps,
+    )
     train_args = TrainingArguments(
         model_save_dir,
-        overwrite_output_dir=overwrite,
-        evaluation_strategy="epoch",
-        learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         num_train_epochs=epochs,
         weight_decay=0.01,
-        # push_to_hub=True,
+        load_best_model_at_end=True,
+        metric_for_best_model=metric_for_best_model,
+        evaluation_strategy="steps",
+        overwrite_output_dir=bool(resume_checkpoint),
+        **steps_dict,
     )
     # NOTE If the dataset is already tokenized tokenizer shouldn't be used,
     # still useful to insert into checkpoints and use when loading the model
-    return Trainer(
+    trainer = Trainer(
         model,
         train_args,
         train_dataset=train_dataset,
@@ -176,3 +194,23 @@ def build_trainer(
         data_collator=DataCollatorForMultipleChoice(tokenizer),
         compute_metrics=compute_metrics_fn,
     )
+    logger.info(
+        "Created trainer with callbacks:\n%s", trainer.callback_handler.callback_list
+    )
+
+    train_result = trainer.train(resume_from_checkpoint=resume_checkpoint)
+    train_metrics = train_result.metrics
+    train_metrics["train_samples"] = len(train_dataset)
+    trainer.log_metrics("train", train_result.metrics)
+    trainer.save_metrics("train", train_result.metrics)
+    # evaluate one last time in case save_steps is not multiple of n_train_step,
+    # in that case we might lose a best checkpoint
+    eval_metrics = trainer.evaluate()
+    eval_metrics["eval_samples"] = len(eval_dataset)
+    trainer.log_metrics("eval", eval_metrics)
+    trainer.save_metrics("eval", eval_metrics)
+    # save very last checkpoint
+    # NOTE best model found is indicated in the 'trainer_state.json' file in
+    # this last checkpoint dir
+    trainer._save_checkpoint(trainer.model, None, metrics=eval_metrics)
+    return trainer

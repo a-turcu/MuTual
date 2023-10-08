@@ -1,5 +1,5 @@
 DEFAULT_EMBEDDING_MODEL = "all-distilroberta-v1"
-DEFAULT_MC_MODEL = "roberta-base"
+DEFAULT_MC_MODEL = "bert-base-uncased"
 
 SEED = 17
 

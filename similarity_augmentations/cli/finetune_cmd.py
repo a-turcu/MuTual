@@ -48,7 +48,7 @@ def fine_tune(
     mutual_version: Annotated[
         MuTualSubset,
         Option(help="The MuTual version to fine-tune on."),
-    ] = MuTualSubset.mutual_plus.value,
+    ] = MuTualSubset.mutual_plus,
     speaker_tags: Annotated[
         bool,
         Option(help="Whether to strip '[MF]:' tags from [b i]MuTual[/b i] dialogues."),
@@ -83,7 +83,7 @@ def fine_tune(
             help="Distance metric for similarity scoring between [b i]MuTual[/b i] and [b i]MMLU[/b i].",
             rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
-    ] = DataSelectionStrategy.random.value,
+    ] = DataSelectionStrategy.random,
     percentage: Annotated[
         float,
         Option(
@@ -166,17 +166,8 @@ def fine_tune(
         )
 
     set_seed(seed)
-    model_save_dir = model_save_dir or conf.FINETUNED_MODELS_DIR / model_name
-    trainer = finetune.build_trainer(
-        train_split,
-        mutual_eval,
-        epochs,
-        batch_size,
-        model_save_dir,
-        AutoModelForMultipleChoice.from_pretrained(model_name),
-        tokenizer,
-    )
 
+    model_save_dir = model_save_dir or conf.FINETUNED_MODELS_DIR / model_name
     checkpoint = None
     if resume:
         checkpoint = get_last_checkpoint(model_save_dir)
@@ -187,7 +178,13 @@ def fine_tune(
             )
         else:
             logger.info("Resume training from checkpoint '%s'", checkpoint)
-    trainer.train(resume_from_checkpoint=checkpoint)
-    # more or less ~5 minutes per epoch
-    # TODO properly save metrics and best checkpoints
-    # TODO early stopping callback?
+    return finetune.finetune(
+        train_split,
+        mutual_eval,
+        epochs,
+        batch_size,
+        model_save_dir,
+        AutoModelForMultipleChoice.from_pretrained(model_name),
+        tokenizer,
+        resume_checkpoint=checkpoint,
+    )
