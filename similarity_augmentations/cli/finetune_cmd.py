@@ -5,6 +5,7 @@ from typing import Optional
 import numpy as np
 from datasets import load_dataset
 from transformers import AutoModelForMultipleChoice, AutoTokenizer, set_seed
+from transformers.trainer_utils import get_last_checkpoint
 from typer import Option, Typer
 from typing_extensions import Annotated
 
@@ -30,6 +31,7 @@ def finetune_help():
 
 
 DATA_AUGMENTATION_PANEL = "Data augmentation options"
+TRAINING_PANEL = "Training options"
 
 # TODO add tokenizaton cache dir, keeps recreating tokenized datasets when they
 # exist already, slow for MMLU
@@ -44,25 +46,37 @@ def fine_tune(
         ),
     ] = consts.DEFAULT_MC_MODEL,
     mutual_version: Annotated[
-        MuTualSubset, Option(help="The MuTual version to fine-tune on.")
+        MuTualSubset,
+        Option(help="The MuTual version to fine-tune on."),
     ] = MuTualSubset.mutual_plus.value,
     speaker_tags: Annotated[
         bool,
         Option(help="Whether to strip '[MF]:' tags from [b i]MuTual[/b i] dialogues."),
     ] = True,
-    seed: Annotated[int, Option(help="Reproducibility seed.")] = consts.SEED,
+    epochs: Annotated[
+        int, Option(help="Number mf training epochs.", rich_help_panel=TRAINING_PANEL)
+    ] = 3,
+    batch_size: Annotated[
+        int,
+        Option(help="Train and evaluation batch size.", rich_help_panel=TRAINING_PANEL),
+    ] = 8,
     model_save_dir: Annotated[
         Optional[Path],
         Option(
-            help=f"Trainer output folder, defaults to [green i]'{str(conf.FINETUNED_MODELS_DIR)}/MODEL-NAME'[/green i]."
+            help=f"Trainer output folder, defaults to [green i]'{str(conf.FINETUNED_MODELS_DIR)}/MODEL-NAME'[/green i].",
+            rich_help_panel=TRAINING_PANEL,
         ),
     ] = None,
-    overwrite: Annotated[
+    seed: Annotated[
+        int, Option(help="Reproducibility seed.", rich_help_panel=TRAINING_PANEL)
+    ] = consts.SEED,
+    resume: Annotated[
         bool,
         Option(
-            help="Whether to overwrite --model-save-dir if it already exists.",
+            help="Resume from latest checkpoint found in --model-save-dir, or train from scratch and overwrite.",
+            rich_help_panel=TRAINING_PANEL,
         ),
-    ] = False,
+    ] = True,
     scoring_strategy: Annotated[
         Optional[DataSelectionStrategy],
         Option(
@@ -152,15 +166,28 @@ def fine_tune(
         )
 
     set_seed(seed)
+    model_save_dir = model_save_dir or conf.FINETUNED_MODELS_DIR / model_name
     trainer = finetune.build_trainer(
         train_split,
         mutual_eval,
-        model_save_dir or conf.FINETUNED_MODELS_DIR / model_name,
+        epochs,
+        batch_size,
+        model_save_dir,
         AutoModelForMultipleChoice.from_pretrained(model_name),
         tokenizer,
-        overwrite=overwrite,
     )
-    trainer.train()
+
+    checkpoint = None
+    if resume:
+        checkpoint = get_last_checkpoint(model_save_dir)
+        if checkpoint is None:
+            logger.info(
+                "No checkpoint found in '%s', overwrite folder and train",
+                model_save_dir,
+            )
+        else:
+            logger.info("Resume training from checkpoint '%s'", checkpoint)
+    trainer.train(resume_from_checkpoint=checkpoint)
     # more or less ~5 minutes per epoch
     # TODO properly save metrics and best checkpoints
     # TODO early stopping callback?

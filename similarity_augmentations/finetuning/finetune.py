@@ -146,11 +146,12 @@ def merge_mutual_mmlu(
 def build_trainer(
     train_dataset: Dataset,
     eval_dataset: Dataset,
+    epochs: int,
+    batch_size: int,
     model_save_dir: Union[str, Path],
     model: AutoModelForMultipleChoice,
     tokenizer: PreTrainedTokenizerBase,
     compute_metrics_fn: Callable[[EvalPrediction], Dict] = evaluate_rankings,
-    batch_size: int = 32,
     overwrite: bool = False,
 ) -> Trainer:
     train_args = TrainingArguments(
@@ -160,7 +161,7 @@ def build_trainer(
         learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=10,
+        num_train_epochs=epochs,
         weight_decay=0.01,
         # push_to_hub=True,
     )
