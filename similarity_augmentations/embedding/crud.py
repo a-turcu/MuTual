@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import numpy as np
 from langchain.schema.embeddings import Embeddings
 from langchain.vectorstores import FAISS, VectorStore
-from tqdm import trange
+from tqdm.autonotebook import trange
 
 from similarity_augmentations import utils
 
@@ -29,7 +29,6 @@ def batch_create_embeddings(
     return embeddings
 
 
-# create if index does not exist or exists and override is true, else load
 def create_or_load_faiss(
     savedir: Union[str, Path],
     index_name: str,
@@ -54,7 +53,13 @@ def create_or_load_faiss(
     if batch_size < 0:
         batch_size = len(dataset)
     embeddings = batch_create_embeddings(dataset, embedder, batch_size)
-    db = FAISS.from_embeddings(list(zip(dataset, embeddings.tolist())), embedder)
+    # use the index in the original texts list as metadata, enables to retrieve
+    # id of document found with db.similarity_search() variants
+    db = FAISS.from_embeddings(
+        list(zip(dataset, embeddings.tolist())),
+        embedder,
+        metadatas=[{"idx": i} for i in range(len(embeddings))],
+    )
     logger.info("Saving FAISS index '%s' to '%s'", index_name, str(savedir))
     db.save_local(savedir, index_name)
     return db

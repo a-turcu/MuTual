@@ -20,9 +20,13 @@ class DataSelectionStrategy(str, Enum):
     random = "random"
 
 
+def to_mmlu_size(p: float, mmlu_len: int) -> int:
+    return int(math.ceil(len(mmlu_len) * p))
+
+
 def random_augmentation(p: float, mmlu: Dataset, rng: Generator) -> List[int]:
     assert rng is not None, f"Missing RNG parameter"
-    n_samples = int(math.ceil(len(mmlu) * p))
+    n_samples = to_mmlu_size(p, len(mmlu))
     assert n_samples <= len(
         mmlu
     ), f"Cannot pick {n_samples} samples from {len(mmlu)} total, decrease p: {p:.3f}"
@@ -41,5 +45,6 @@ def embedding_similarity_augmentation(
     embedder = HuggingFaceEmbeddings(model_name=model_name)
     mutual_db = crud.create_or_load_faiss(faiss_db_dir, mutual_index, embedder)
     mmlu_db = crud.create_or_load_faiss(faiss_db_dir, mmlu_index, embedder)
+    n_samples = to_mmlu_size(p, len(mmlu))
     # now get the closest points from MMLU according to scoring_strategy
     return []
