@@ -131,10 +131,9 @@ def fine_tune(
     train_split = mutual_train
     if percentage > 0:
         logger.info("***** DATA AUGMENTATION *****")
-        mmlu_add_ids = []  # NOTE remove afterwards
         mmlu = load_dataset(consts.MMLU_HF_PATH, name="all")["auxiliary_train"]
         # make same feature names to use same tokenization function
-        mmlu = finetune.unify_mutual_mmlu_structure(mmlu)
+        mmlu = augmentations.unify_mutual_mmlu_structure(mmlu)
         logger.info("Tokenizing MMLU")
         mmlu_train = finetune.tokenize_dataset(mmlu, tokenizer)
         scaled_percentage = len(mutual_train) * percentage / len(mmlu_train)
@@ -154,6 +153,9 @@ def fine_tune(
                 mmlu_index,
                 model_name,
             )
+        train_split = augmentations.merge_mutual_mmlu(
+            mutual_train, mmlu_train, mmlu_merge_ids=mmlu_add_ids
+        )
         logger.info(
             "Added %d MMLU datapoints (p: %.3f scaled: %.4f) with strategy: '%s'",
             len(mmlu_add_ids),

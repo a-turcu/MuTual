@@ -2,11 +2,11 @@ import math
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from datasets import Dataset, DatasetDict, concatenate_datasets
+from datasets import Dataset, DatasetDict
 from transformers import (AutoModelForMultipleChoice, PreTrainedTokenizerBase,
                           Trainer, TrainingArguments)
 from transformers.tokenization_utils_base import PaddingStrategy
@@ -110,42 +110,6 @@ def evaluate_rankings(eval_predictions: EvalPrediction) -> Dict[str, float]:
     }
     inverse_ranks = 1 / (np.argwhere(ranked_predictions == labels)[:, 1] + 1)
     return recalls_dict | {"MRR": inverse_ranks.mean().item()}
-
-
-def unify_mutual_mmlu_structure(mmlu: Dataset) -> Dataset:
-    """Rename MMLU features to same ones of preprocessed MuTual."""
-    if "subject" in mmlu.features:
-        mmlu = mmlu.remove_columns("subject")  # unused column
-    # normalize the feature names to MuTual's ones
-    to_mutual_map = {"answer": "labels", "choices": "options", "question": "article"}
-    return mmlu.rename_columns(to_mutual_map)
-
-
-def merge_mutual_mmlu(
-    mutual: Dataset, mmlu: Dataset, mmlu_merge_ids: Iterable[int] = -1
-) -> Dataset:
-    """
-    Add specific datapoints from MMLU subset 'all' to the MuTual dataset.
-
-    Arguments
-    ---------
-    `mutual`: A MuTual dataset split e.g. 'train'.
-
-    `mmlu`: A MMLU dataset split e.g. 'auxiliary_train'.
-
-    `mmlu_merge_ids`: The indices of dapoints in MMLU which should be added to
-        MuTual. If negative, the two datasets are fully concatenated.
-
-    Parameters
-    ----------
-    A `datasets.Dataset` with all datapoints from MuTual and selected datapoins
-    from MMLU.
-    """
-    assert "labels" in mutual.features, "Call `utils.preprocess_mutual(mutual)` first"
-    # TODO check that feature names are the same before merging, else call unify
-    if isinstance(mmlu_merge_ids, int) and mmlu_merge_ids < 0:
-        mmlu_merge_ids = range(len(mmlu))
-    return concatenate_datasets([mutual, mmlu.select(mmlu_merge_ids)])
 
 
 def finetune(
