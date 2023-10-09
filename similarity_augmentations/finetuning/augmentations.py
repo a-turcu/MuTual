@@ -1,13 +1,12 @@
 import math
 from enum import Enum
-from pathlib import Path
 from typing import Iterable, List
 
 from datasets import Dataset, concatenate_datasets
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
 from numpy.random import Generator
 
-from similarity_augmentations.embedding import crud, utils
+from similarity_augmentations.embedding import utils
 
 logger = utils.get_logger(name=__name__)
 
@@ -23,31 +22,23 @@ class DataSelectionStrategy(str, Enum):
 
 
 def to_mmlu_size(p: float, mmlu_len: int) -> int:
-    return int(math.ceil(len(mmlu_len) * p))
+    n_samples = int(math.ceil(mmlu_len * p))
+    assert (
+        n_samples <= mmlu_len
+    ), f"Cannot pick {n_samples} samples from {mmlu_len} total, percentage must be <= 1"
+    return n_samples
 
 
 def random_augmentation(p: float, mmlu: Dataset, rng: Generator) -> List[int]:
     assert rng is not None, f"Missing RNG parameter"
-    n_samples = to_mmlu_size(p, len(mmlu))
-    assert n_samples <= len(
-        mmlu
-    ), f"Cannot pick {n_samples} samples from {len(mmlu)} total, decrease p: {p:.3f}"
-    return list(rng.choice(len(mmlu), n_samples, replace=False))
+    return list(rng.choice(len(mmlu), to_mmlu_size(p, len(mmlu)), replace=False))
 
 
 def embedding_similarity_augmentation(
-    p: float,
-    strategy: DataSelectionStrategy,
-    faiss_db_dir: Path,
-    mutual_index: str,
-    mmlu_index: str,
-    model_name: str,
+    p: float, strategy: DataSelectionStrategy, mutual_db: FAISS, mmlu_db: FAISS
 ) -> List[int]:
     assert strategy != DataSelectionStrategy.random
-    embedder = HuggingFaceEmbeddings(model_name=model_name)
-    mutual_db = crud.create_or_load_faiss(faiss_db_dir, mutual_index, embedder)
-    mmlu_db = crud.create_or_load_faiss(faiss_db_dir, mmlu_index, embedder)
-    n_samples = to_mmlu_size(p, len(mmlu))
+    n_samples = to_mmlu_size(p, mmlu_db.index.ntotal)
     # now get the closest points from MMLU according to scoring_strategy
     return []
 

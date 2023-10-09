@@ -1,15 +1,18 @@
+import json
 from enum import Enum
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 from datasets import load_dataset
-from transformers import AutoModelForMultipleChoice, AutoTokenizer, set_seed
+from transformers import (AutoModelForMultipleChoice, AutoTokenizer, Trainer,
+                          set_seed)
 from transformers.trainer_utils import get_last_checkpoint
 from typer import Option, Typer
 from typing_extensions import Annotated
 
 from similarity_augmentations import conf, consts, utils
+from similarity_augmentations.embedding import crud
 from similarity_augmentations.finetuning import augmentations, finetune
 from similarity_augmentations.finetuning.augmentations import \
     DataSelectionStrategy
@@ -96,7 +99,7 @@ def fine_tune(
     faiss_db_dir: Annotated[
         Path,
         Option(
-            help=f"Folder with FAISS files for [b i]MuTual[/b i] and [b i]MMLU[/b i] embedding indexes. [green b]Accessed[/green b] when [green i]PERCENTAGE > 0 and SCORING-STRATEGY != {DataSelectionStrategy.random.value!r}[/green i].",
+            help=f"Folder with FAISS files for [b i]MuTual[/b i] and [b i]MMLU[/b i] embedding indexes. If indexes don't exist they will be created.",
             rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
     ] = conf.VECTORDB_DIR,
@@ -114,7 +117,7 @@ def fine_tune(
             rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
     ] = None,
-):
+) -> Trainer:
     """Run fine-tuning, possibly with data augmentation."""
     mutual = load_dataset(consts.MUTUAL_HF_PATH, name=mutual_version.value)
     logger.info("Preprocess MuTual")
@@ -128,34 +131,37 @@ def fine_tune(
         mutual_tokenized["validation"],
     )
 
+    model_save_dir = model_save_dir or conf.FINETUNED_MODELS_DIR / model_name
     train_split = mutual_train
     if percentage > 0:
         logger.info("***** DATA AUGMENTATION *****")
-        mmlu = load_dataset(consts.MMLU_HF_PATH, name="all")["auxiliary_train"]
-        # make same feature names to use same tokenization function
-        mmlu = augmentations.unify_mutual_mmlu_structure(mmlu)
-        logger.info("Tokenizing MMLU")
-        mmlu_train = finetune.tokenize_dataset(mmlu, tokenizer)
+        mmlu_train = load_dataset(consts.MMLU_HF_PATH, name="all")["auxiliary_train"]
         scaled_percentage = len(mutual_train) * percentage / len(mmlu_train)
+        # make same feature names to use same tokenization function
+        mmlu_train = augmentations.unify_mutual_mmlu_structure(mmlu_train)
+        logger.info("Tokenizing MMLU")
+        mmlu_train = finetune.tokenize_dataset(mmlu_train, tokenizer)
         if scoring_strategy == DataSelectionStrategy.random:
             mmlu_add_ids = augmentations.random_augmentation(
                 scaled_percentage, mmlu_train, np.random.default_rng(seed)
             )
-        else:  # need valid FAISS indices here
-            assert (
-                mutual_index and mmlu_index
-            ), f"Pass MuTual and MMLU FAISS index names when scoring_strategy != {DataSelectionStrategy.random.value:r} and percentage > 0."
-            mmlu_add_ids = augmentations.embedding_similarity_augmentation(
-                scaled_percentage,
-                scoring_strategy,
+        else:  # NOTE creates FAISS databases if they don't exist
+            mutual_db = crud.create_or_load_faiss(
                 faiss_db_dir,
                 mutual_index,
-                mmlu_index,
-                model_name,
+                embedder=model_name,
+                dataset=mutual_train["article"],
             )
-        train_split = augmentations.merge_mutual_mmlu(
-            mutual_train, mmlu_train, mmlu_merge_ids=mmlu_add_ids
-        )
+            mmlu_db = crud.create_or_load_faiss(
+                faiss_db_dir,
+                mmlu_index,
+                embedder=model_name,
+                dataset=mmlu_train["article"],
+                batch_size=int(1e4),
+            )
+            mmlu_add_ids = augmentations.embedding_similarity_augmentation(
+                scaled_percentage, scoring_strategy, mutual_db, mmlu_db
+            )
         logger.info(
             "Added %d MMLU datapoints (p: %.3f scaled: %.4f) with strategy: '%s'",
             len(mmlu_add_ids),
@@ -166,10 +172,22 @@ def fine_tune(
         train_split = finetune.merge_mutual_mmlu(
             mutual_train, mmlu_train, mmlu_merge_ids=mmlu_add_ids
         )
+        with open(model_save_dir / "mmlu_merge_ids.json") as fd:
+            json.dump(
+                {
+                    "dataset": consts.MMLU_HF_PATH,
+                    "name": "all",
+                    "split": "auxiliary_train",
+                    "strategy": scoring_strategy.value,
+                    "p": percentage,
+                    "scaled_p": scaled_percentage,
+                    "ids": mmlu_add_ids,
+                },
+                fd,
+            )
 
     set_seed(seed)
 
-    model_save_dir = model_save_dir or conf.FINETUNED_MODELS_DIR / model_name
     checkpoint = None
     if resume:
         checkpoint = get_last_checkpoint(model_save_dir)

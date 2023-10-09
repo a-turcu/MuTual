@@ -2,11 +2,12 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.schema.embeddings import Embeddings
 from langchain.vectorstores import FAISS, VectorStore
 from tqdm.autonotebook import trange
 
-from similarity_augmentations import utils
+from similarity_augmentations import consts, utils
 
 logger = utils.get_logger(name=__name__)
 
@@ -32,12 +33,17 @@ def batch_create_embeddings(
 def create_or_load_faiss(
     savedir: Union[str, Path],
     index_name: str,
-    embedder: Embeddings,
+    embedder: Optional[Union[Embeddings, str]] = None,
     dataset: Optional[List[str]] = None,
     overwrite: bool = False,
     batch_size: int = -1,
 ) -> VectorStore:
     assert isinstance(index_name, str)
+    if embedder is None:
+        embedder = consts.DEFAULT_EMBEDDING_MODEL
+    if isinstance(embedder, str):
+        logger.info("Creating SBERT model: '%s'", embedder)
+        embedder = HuggingFaceEmbeddings(model_name=embedder)
     savedir = Path(savedir)
     faiss_local_files = [f"{index_name}.faiss", f"{index_name}.pkl"]
     savedir_faiss_glob = [e.name for e in savedir.glob(f"{index_name}.*")]
