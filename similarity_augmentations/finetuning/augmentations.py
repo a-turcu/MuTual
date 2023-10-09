@@ -6,7 +6,7 @@ from datasets import Dataset, concatenate_datasets
 from langchain.vectorstores import FAISS
 from numpy.random import Generator
 
-from similarity_augmentations.embedding import utils
+from similarity_augmentations import utils
 
 logger = utils.get_logger(name=__name__)
 
