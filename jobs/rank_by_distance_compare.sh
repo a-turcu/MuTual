@@ -5,8 +5,8 @@
 #SBATCH --gpus=1
 #SBATCH --partition=gpu
 #SBATCH --time=2:00:00
-#SBATCH --output=rank_by_distance.out
-#SBATCH --job-name=scores
+#SBATCH --output=rank_by_distance_compare.out
+#SBATCH --job-name=compare_scores
 # Execute program located in $HOME
 source activate dl4nlp
 

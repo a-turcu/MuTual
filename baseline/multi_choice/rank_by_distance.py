@@ -17,11 +17,12 @@ mtl_scores_path = 'baseline/embeddings/mutual_distil_rankings.json'
 mmlu_scores_path = 'baseline/embeddings/mmlu_distil_rankings.json'
 
 
-# compute mean cosine similarity between one row and all rows in embeddings
-def cosine_similarity(row, embeddings):
+# compute mean similarity between one row and all rows in embeddings
+def compute_similarity(row, embeddings):
 	sim_scores = []
 	for data_row in embeddings.values():
-		sim_score = np.dot(row, data_row) / (np.linalg.norm(row) * np.linalg.norm(data_row))
+		# sim_score = np.dot(row, data_row) / (np.linalg.norm(row) * np.linalg.norm(data_row))
+		sim_score = np.linalg.norm(np.asarray(row) - np.asarray(data_row))
 		# sim_score = st_util.cos_sim(row, data_row)
 		sim_scores.append(sim_score)
 
@@ -47,7 +48,7 @@ if args.mutual:
 	print("Computing mutual scores...")
 	for row, emb in tqdm.tqdm(mtl_embeddings.items()):
 		# compare row with mtl_data
-		mtl_scores[row] = cosine_similarity(emb, mtl_embeddings)
+		mtl_scores[row] = compute_similarity(emb, mtl_embeddings)
 	sorted_mtl = sorted(mtl_scores.items(), key=lambda x: x[1], reverse=True)
 	with open(mtl_scores_path, 'w') as f:
 		json.dump(sorted_mtl, f)
@@ -58,7 +59,7 @@ if args.mmlu:
 	print("Computing mmlu scores...")
 	for row, emb in tqdm.tqdm(mmlu_embeddings.items()):
 		# compare row with mtl_data
-		mmlu_scores[row] = cosine_similarity(emb, mtl_embeddings)
+		mmlu_scores[row] = compute_similarity(emb, mtl_embeddings)
 	sorted_mmlu = sorted(mmlu_scores.items(), key=lambda x: x[1], reverse=True)
 	with open(mmlu_scores_path, 'w') as f:
 		json.dump(sorted_mmlu, f)
