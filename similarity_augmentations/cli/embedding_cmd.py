@@ -3,13 +3,12 @@ from pathlib import Path
 from typing import Optional
 
 from datasets import load_dataset
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import VectorStore
+from sentence_transformers import SentenceTransformer
 from typer import Argument, Option, Typer
 from typing_extensions import Annotated
 
 from similarity_augmentations import conf, consts, utils
-from similarity_augmentations.embedding import crud
+from similarity_augmentations.embedding import faiss_utils
 
 logger = utils.get_logger(name=__name__)
 
@@ -38,7 +37,7 @@ CREATE_DB_CREATION_PANEL = "Embedding creation options"
 
 
 @app.command()
-def create_db(
+def create(
     dataset: Annotated[
         MCDataset,
         Argument(help="Dataset retrieved from [b i]HuggingFace datasets[/b i]."),
@@ -50,7 +49,7 @@ def create_db(
     index: Annotated[
         Optional[str],
         Option(
-            help=f"[green]FAISS[/green] database index for embedded collection, defaults to [green i]'{conf.VECTORDB_DIR}/DATASET__SPLIT__EMBEDDING-MODEL'[/green i]."
+            help=f"[green]FAISS[/green] index name for embedded collection, defaults to [green i]'{conf.VECTORDB_DIR}/DATASET__SPLIT__EMBEDDING-MODEL'[/green i]."
         ),
     ] = None,
     embedding_model: Annotated[
@@ -59,9 +58,9 @@ def create_db(
             help="A pretrained [green]SentenceTransformer[/green] model from https://www.sbert.net/docs/pretrained_models.html."
         ),
     ] = consts.DEFAULT_EMBEDDING_MODEL,
-    db_save_dir: Annotated[
+    index_save_dir: Annotated[
         Path,
-        Option(help="Folder where to store the [green]FAISS[/green] database."),
+        Option(help="Folder where to store the [green]FAISS[/green] index."),
     ] = conf.VECTORDB_DIR,
     overwrite: Annotated[
         bool,
@@ -73,10 +72,10 @@ def create_db(
     batch_size: Annotated[
         int,
         Option(
-            help="Batch size for embedding creation, useful when embedding large amounts of text. A negative value prevents batching.",
+            help="Batch size for embedding creation - values > 1000 might not fit into GPU memory.",
             rich_help_panel=CREATE_DB_CREATION_PANEL,
         ),
-    ] = int(5e3),
+    ] = 32,
     speaker_tags: Annotated[
         bool,
         Option(
@@ -84,9 +83,9 @@ def create_db(
             rich_help_panel=CREATE_DB_CREATION_PANEL,
         ),
     ] = True,
-) -> VectorStore:
+):
     """
-    Embed texts with a [b]SentenceTransformer[/b] model and store into a [b]FAISS[/b] database.
+    Embed texts with a [b]SentenceTransformer[/b] model and store into a [b]FAISS[/b] index.
     """
     # load dataset split
     split_name = split.value
@@ -105,10 +104,10 @@ def create_db(
             split_name = "auxiliary_train"
         hf_dataset = load_dataset(consts.MMLU_HF_PATH, name="all")
         split_articles = hf_dataset[split_name]["question"]
-    return crud.create_or_load_faiss(
-        db_save_dir,
+    return faiss_utils.create_or_load_faiss_index(
+        index_save_dir,
         index or f"{dataset.value}__{split_name}__{embedding_model}",
-        HuggingFaceEmbeddings(model_name=embedding_model),
+        SentenceTransformer(embedding_model),
         dataset=split_articles,
         overwrite=overwrite,
         batch_size=batch_size,
@@ -116,25 +115,12 @@ def create_db(
 
 
 @app.command()
-def load_db(
-    index: Annotated[
-        str,
-        Option(help="[green]FAISS[/green] index of embedded collection."),
+def load(
+    index_path: Annotated[
+        Path, Argument(help="[green]FAISS[/green] index path of embedded collection.")
     ],
-    db_load_dir: Annotated[
-        Path,
-        Option(help="Folder where to find the [green]FAISS[/green] database."),
-    ] = conf.VECTORDB_DIR,
-    embedding_model: Annotated[
-        str,
-        Option(
-            help="The [green]SentenceTransformer[/green] model used to embed the documents in the db."
-        ),
-    ] = consts.DEFAULT_EMBEDDING_MODEL,
-) -> VectorStore:
+):
     """
-    Load a [b]FAISS[/b] database from disk.
+    Load a [b]FAISS[/b] index from disk.
     """
-    return crud.create_or_load_faiss(
-        db_load_dir, index, HuggingFaceEmbeddings(model_name=embedding_model)
-    )
+    return faiss_utils.create_or_load_faiss_index(index_path.parent, index_path.name)

@@ -12,7 +12,7 @@ from typer import Option, Typer
 from typing_extensions import Annotated
 
 from similarity_augmentations import conf, consts, utils
-from similarity_augmentations.embedding import crud
+from similarity_augmentations.embedding import faiss_utils
 from similarity_augmentations.finetuning import augmentations, finetune
 from similarity_augmentations.finetuning.augmentations import \
     DataSelectionStrategy
@@ -96,10 +96,10 @@ def fine_tune(
             rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
     ] = 0.0,
-    faiss_db_dir: Annotated[
+    faiss_index_dir: Annotated[
         Path,
         Option(
-            help=f"Folder with FAISS files for [b i]MuTual[/b i] and [b i]MMLU[/b i] embedding indexes. If indexes don't exist they will be created.",
+            help=f"Folder with FAISS embedding indexes for [b i]MuTual[/b i] and [b i]MMLU[/b i]. If indexes don't exist they will be created.",
             rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
     ] = conf.VECTORDB_DIR,
@@ -122,6 +122,8 @@ def fine_tune(
     mutual = load_dataset(consts.MUTUAL_HF_PATH, name=mutual_version.value)
     logger.info("Preprocess MuTual")
     mutual = utils.preprocess_mutual(mutual, speaker_tags=speaker_tags)
+
+    set_seed(seed)
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     logger.info("Tokenizing all MuTual splits")
@@ -146,21 +148,20 @@ def fine_tune(
                 scaled_percentage, mmlu_train, np.random.default_rng(seed)
             )
         else:  # NOTE creates FAISS databases if they don't exist
-            mutual_db = crud.create_or_load_faiss(
-                faiss_db_dir,
+            mutual_db = faiss_utils.create_or_load_faiss_index(
+                faiss_index_dir,
                 mutual_index,
                 embedder=model_name,
                 dataset=mutual_train["article"],
             )
-            mmlu_db = crud.create_or_load_faiss(
-                faiss_db_dir,
+            mmlu_db = faiss_utils.create_or_load_faiss_index(
+                faiss_index_dir,
                 mmlu_index,
                 embedder=model_name,
                 dataset=mmlu_train["article"],
-                batch_size=int(1e4),
             )
             mmlu_add_ids = augmentations.embedding_similarity_augmentation(
-                scaled_percentage, scoring_strategy, mutual_db, mmlu_db
+                scaled_percentage, "size", mutual_db, mmlu_db
             )
         logger.info(
             "Added %d MMLU datapoints (p: %.3f scaled: %.4f) with strategy: '%s'",
@@ -169,10 +170,11 @@ def fine_tune(
             scaled_percentage,
             scoring_strategy.value,
         )
-        train_split = finetune.merge_mutual_mmlu(
+        train_split = augmentations.merge_mutual_mmlu(
             mutual_train, mmlu_train, mmlu_merge_ids=mmlu_add_ids
         )
-        with open(model_save_dir / "mmlu_merge_ids.json") as fd:
+        model_save_dir.mkdir(parents=True, exist_ok=True)
+        with open(model_save_dir / "mmlu_merge_ids.json", "w") as fd:
             json.dump(
                 {
                     "dataset": consts.MMLU_HF_PATH,
@@ -185,8 +187,6 @@ def fine_tune(
                 },
                 fd,
             )
-
-    set_seed(seed)
 
     checkpoint = None
     if resume:

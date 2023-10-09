@@ -1,7 +1,9 @@
 from pathlib import Path
 
-TOKENIZED_DATASET_DIR = Path("tokenized_datasets")
+ROOT_DIR = Path().resolve()
 
-VECTORDB_DIR = Path("vector_db")
+TOKENIZED_DATASET_DIR = ROOT_DIR / "tokenized_datasets"
 
-FINETUNED_MODELS_DIR = Path("finetuned_models")
+VECTORDB_DIR = ROOT_DIR / "vector_db"
+
+FINETUNED_MODELS_DIR = ROOT_DIR / "finetuned_models"

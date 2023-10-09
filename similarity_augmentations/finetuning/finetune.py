@@ -128,8 +128,7 @@ def finetune(
     # is small (at least one)
     n_train_step = int(math.ceil(len(train_dataset) / batch_size) * epochs)
     cycle_steps = min(TrainingArguments.logging_steps, n_train_step)
-    # steps_dict = {f"{p}_steps": cycle_steps for p in ["logging", "eval", "save"]}
-    steps_dict = {f"{p}_steps": 20 for p in ["logging", "eval", "save"]}
+    steps_dict = {f"{p}_steps": cycle_steps for p in ["logging", "eval", "save"]}
     logger.info(
         "Total training steps: %d, log-eval-save steps: %d",
         n_train_step,
