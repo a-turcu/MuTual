@@ -2,13 +2,45 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-from faiss import (GpuIndexFlat, IndexFlat, IndexFlatL2, index_gpu_to_cpu,
-                   read_index, write_index)
+from faiss import IndexFlat, IndexFlatL2, read_index, write_index
 from sentence_transformers import SentenceTransformer
 
 from similarity_augmentations import consts, utils
 
 logger = utils.get_logger(name=__name__)
+
+
+def is_faiss_gpu() -> bool:
+    ret = False
+    try:
+        from faiss import GpuIndexFlat
+
+        ret = True
+    except:
+        ...
+    return ret
+
+
+def try_move_index_to_gpu(index: IndexFlat, device: int = 0) -> Tuple[IndexFlat, bool]:
+    moved = False
+    if is_faiss_gpu():
+        from faiss import GpuIndexFlat, StandardGpuResources, index_cpu_to_gpu
+
+        if not isinstance(index, GpuIndexFlat):
+            index = index_cpu_to_gpu(StandardGpuResources(), device, index)
+            moved = True
+    return index, moved
+
+
+def check_move_index_to_cpu(index: IndexFlat) -> Tuple[IndexFlat, bool]:
+    moved = False
+    if is_faiss_gpu():
+        from faiss import GpuIndexFlat, index_gpu_to_cpu
+
+        if isinstance(index, GpuIndexFlat):
+            logger.info("Moving GPU index to CPU")
+            index, moved = index_gpu_to_cpu(index), True
+    return index, moved
 
 
 # NOTE bad design passing folder + names, single filename would be better
@@ -53,13 +85,14 @@ def create_or_load_faiss_index(
 
 # NOTE make sure each big index is on GPU first for 10X speedup (snellius)
 def kth_similar_to_all_query_vectors(
-    query_index: Union[IndexFlat, GpuIndexFlat],
-    target_index: Union[IndexFlat, GpuIndexFlat],
-    max_rank: int,
-) -> Tuple[np.ndarray]:
-    if isinstance(target_index, GpuIndexFlat) and max_rank >= 2048:
-        logger.warning("GpuIndexFlat max K-NN search: 2048, moving target_index to CPU")
-        target_index = index_gpu_to_cpu(target_index)
+    query_index: IndexFlat, target_index: IndexFlat, max_rank: int
+) -> np.ndarray:
+    if max_rank >= 2048:
+        target_index, moved = check_move_index_to_cpu(target_index)
+        if moved:
+            logger.warning(
+                "GpuIndexFlat max rank for K-NN search is 2048, required %d, moved target_index to CPU", max_rank
+            )
     # faiss does not fail if searched rank exceeds target_index.ntotal, just
     # returns 0s at exceeding ranks
     max_rank = min(max_rank, target_index.ntotal)

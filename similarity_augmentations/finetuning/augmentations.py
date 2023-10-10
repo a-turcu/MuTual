@@ -5,9 +5,8 @@ from itertools import chain
 from typing import Dict, Iterable, List, Tuple, Union
 
 import numpy as np
-import torch
 from datasets import Dataset, concatenate_datasets
-from faiss import GpuIndexFlatL2, IndexFlatL2, StandardGpuResources, index_cpu_to_gpu
+from faiss import IndexFlatL2
 from numpy.linalg import norm
 from numpy.random import Generator
 
@@ -55,10 +54,9 @@ def embedding_similarity_augmentation(
     # assert strategy != DataSelectionStrategy.random
     n_samples = to_mmlu_size(p, mmlu_index.ntotal)
     # load or create similarity arrays and file
-    if torch.cuda.is_available() and not isinstance(mmlu_index, GpuIndexFlatL2):
-        logger.info("Moving MMLU index to GPU for faster K-NN search")
-        res = StandardGpuResources()
-        mmlu_index = index_cpu_to_gpu(res, 0, mmlu_index)
+    mmlu_index, moved = faiss_utils.try_move_index_to_gpu(mmlu_index)
+    if moved:
+        logger.info("Moved MMLU index to GPU for faster K-NN search")
     D, I, _ = find_ranking_lower_bound_for_n_unique_samples(
         mutual_index, mmlu_index, n_samples
     )
@@ -205,5 +203,4 @@ def merge_mutual_mmlu(
     assert "labels" in mutual.features, "Call `utils.preprocess_mutual(mutual)` first"
     if isinstance(mmlu_merge_ids, int) and mmlu_merge_ids < 0:
         mmlu_merge_ids = range(len(mmlu))
-    return concatenate_datasets([mutual, mmlu.select(mmlu_merge_ids)])
     return concatenate_datasets([mutual, mmlu.select(mmlu_merge_ids)])
