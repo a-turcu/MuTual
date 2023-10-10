@@ -2,7 +2,7 @@ import math
 from enum import Enum
 from functools import reduce
 from itertools import chain
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 import torch
@@ -11,8 +11,7 @@ from faiss import (GpuIndexFlatL2, IndexFlatL2, StandardGpuResources,
                    index_cpu_to_gpu)
 from numpy.random import Generator
 
-from similarity_augmentations import utils
-from similarity_augmentations.embedding import faiss_utils
+from similarity_augmentations import faiss_utils, utils
 
 logger = utils.get_logger(name=__name__)
 
