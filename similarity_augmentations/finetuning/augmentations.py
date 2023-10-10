@@ -11,7 +11,8 @@ from faiss import (GpuIndexFlatL2, IndexFlatL2, StandardGpuResources,
                    index_cpu_to_gpu)
 from numpy.random import Generator
 
-from similarity_augmentations import faiss_utils, utils
+from similarity_augmentations import utils
+from similarity_augmentations.embedding import faiss_utils
 
 logger = utils.get_logger(name=__name__)
 

@@ -12,9 +12,12 @@
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate mutual-dl4nlp
 
-cd MuTual
+cd $HOME/MuTual
 srun python -m similarity_augmentations.main fine-tune \
     --model-name bert-base-uncased \
     --model-save-dir finetuned_models/bert-base-uncased-cos-sim-05 \
     --scoring-strategy dot-product \
-    --percentage .5
+    --percentage .5 \
+    --faiss-index-dir vector_db \
+    --mutual-index mutual_plus__train__all-distilroberta-v1_new_2.faiss \
+    --mmlu-index mmlu__auxiliary_train__all-distilroberta-v1_new_2.faiss

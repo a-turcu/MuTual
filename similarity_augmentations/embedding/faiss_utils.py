@@ -20,6 +20,7 @@ def create_or_load_faiss_index(
     overwrite: bool = False,
     batch_size: int = 32,
 ) -> IndexFlatL2:
+    assert isinstance(index_name, str)
     savedir = Path(savedir)
     savedir.mkdir(parents=True, exist_ok=True)
     faiss_index_path = savedir / f"{index_name.replace('.faiss', '')}.faiss"

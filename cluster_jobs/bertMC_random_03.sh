@@ -12,7 +12,7 @@
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate mutual-dl4nlp
 
-cd MuTual
+cd $HOME/MuTual
 srun python -m similarity_augmentations.main fine-tune \
     --model-name bert-base-uncased \
     --model-save-dir finetuned_models/bert-base-uncased-random-03 \
