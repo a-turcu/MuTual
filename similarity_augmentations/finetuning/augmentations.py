@@ -16,13 +16,14 @@ from similarity_augmentations.embedding import faiss_utils
 logger = utils.get_logger(name=__name__)
 
 
-# NOTE copied from LangChain to add 'random'
 class DataSelectionStrategy(str, Enum):
-    euclidean_distance = "euclidean-distance"
-    max_inner_product = "max-inner-product"
-    dot_product = "dot-product"
-    jaccard = "jaccard"
-    cosine = "cosine"
+    # euclidean_distance = "euclidean-distance"
+    # max_inner_product = "max-inner-product"
+    # dot_product = "dot-product"
+    # jaccard = "jaccard"
+    # cosine = "cosine"
+    neighborhood_size = "neighborhood_size"
+    mean_distance = "mean_distance"
     random = "random"
 
 
@@ -41,17 +42,13 @@ def random_augmentation(p: float, mmlu: Dataset, rng: Generator) -> List[int]:
     )
 
 
-# TODO check if other distance metrics can be used out of the box, they
-# probably need a change of index to IndexFlatIP; this involves param
-# higher_is_better
 def embedding_similarity_augmentation(
     p: float,
-    sim_at_ranks_strategy: str,
+    sim_sorting_strategy: DataSelectionStrategy,
     mutual_index: IndexFlatL2,
     mmlu_index: IndexFlatL2,
-    strategy: DataSelectionStrategy = None,
 ) -> List[int]:
-    # assert strategy != DataSelectionStrategy.random
+    assert sim_sorting_strategy != DataSelectionStrategy.random
     n_samples = to_mmlu_size(p, mmlu_index.ntotal)
     # load or create similarity arrays and file
     mmlu_index, moved = faiss_utils.try_move_index_to_gpu(mmlu_index)
@@ -73,7 +70,7 @@ def embedding_similarity_augmentation(
         # https://github.com/facebookresearch/faiss/wiki/FAQ/7f59d7b610e258df8c15dc808ca54b2325515375#how-can-i-index-vectors-for-cosine-distance
         D = (2 - D) / 2
     sorted_sim_mmlu_points = sort_similar_datapoints_at_ranks(
-        I, D, prioritize=sim_at_ranks_strategy
+        I, D, prioritize=sim_sorting_strategy.value
     )
     return [int(d["id"]) for d in sorted_sim_mmlu_points[:n_samples]]
 
@@ -85,17 +82,18 @@ def find_ranking_lower_bound_for_n_unique_samples(
     start_max_rank: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, int]:
     start_max_rank = max(1, start_max_rank)
-    logger.info(
-        "Required %d similar points, search starts at rank %d",
-        n_desired_similar,
-        start_max_rank,
-    )
+    logger.info("Required %d similar MMLU points", n_desired_similar)
     for k in range(start_max_rank, query_index.ntotal):
         D, I = faiss_utils.kth_similar_to_all_query_vectors(
             query_index, target_index, k
         )
         n_unique_at_ranks = len(np.unique(I))
-        logger.info("From rank 1 to %d are %d unique points", k, n_unique_at_ranks)
+        logger.info(
+            "%d/%d unique datapoints up to rank %d",
+            n_unique_at_ranks,
+            query_index.ntotal,
+            k,
+        )
         if n_unique_at_ranks >= n_desired_similar:
             break
     return D, I, k
@@ -157,12 +155,12 @@ def sort_similarities(
     higher_is_better: bool,
 ) -> List[Dict]:
     assert prioritize in [
-        "size",
-        "distance",
+        "neighborhood_size",  # default
+        "mean_distance",
     ], "Can only sort similar datapoints by mean distance at ranks or neighborhood size"
     # default initializations
     sort_key, reverse = lambda d: len(d["similar_to"]), True
-    if prioritize == "distance":
+    if prioritize == "mean_distance":
         sort_key = lambda d: d["distance"]
         if not higher_is_better:
             reverse = False

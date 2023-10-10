@@ -72,7 +72,12 @@ def create_or_load_faiss_index(
     # replace newlines for legacy models https://github.com/openai/openai-python/issues/418
     dataset = [x.replace("\n", " ") for x in dataset]
     logger.info("Encode dataset size %d batch size %d", len(dataset), batch_size)
-    embeddings = embedder.encode(dataset, batch_size=batch_size, show_progress_bar=True)
+    embeddings = embedder.encode(
+        dataset,
+        batch_size=batch_size,
+        show_progress_bar=True,
+        normalize_embeddings=True,
+    )
 
     index = IndexFlatL2(embedder[1].word_embedding_dimension)
     # embeddings are added sequentially, so index.reconstruct(n) == embedder.encode(dataset[n])
@@ -83,7 +88,6 @@ def create_or_load_faiss_index(
     return index
 
 
-# NOTE make sure each big index is on GPU first for 10X speedup (snellius)
 def kth_similar_to_all_query_vectors(
     query_index: IndexFlat, target_index: IndexFlat, max_rank: int
 ) -> np.ndarray:
@@ -91,7 +95,8 @@ def kth_similar_to_all_query_vectors(
         target_index, moved = check_move_index_to_cpu(target_index)
         if moved:
             logger.warning(
-                "GpuIndexFlat max rank for K-NN search is 2048, required %d, moved target_index to CPU", max_rank
+                "GpuIndexFlat max rank for K-NN search is 2048, required %d, moved target_index to CPU",
+                max_rank,
             )
     # faiss does not fail if searched rank exceeds target_index.ntotal, just
     # returns 0s at exceeding ranks

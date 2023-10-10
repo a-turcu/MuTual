@@ -80,10 +80,18 @@ def fine_tune(
             rich_help_panel=TRAINING_PANEL,
         ),
     ] = True,
-    scoring_strategy: Annotated[
+    augmentation_strategy: Annotated[
         Optional[DataSelectionStrategy],
         Option(
-            help="Distance metric for similarity scoring between [b i]MuTual[/b i] and [b i]MMLU[/b i].",
+            help="""
+            How to score similarity between [b i]MuTual[/b i] and [b i]MMLU[/b i] datpoints:
+
+            - [i]random[/i]: sample random MMLU datapoints.
+
+            - [i]mean_distance[/i]: sort MMLU datapoints by their average distance to MuTual.
+
+            - [i]neighborhood_size[/i]: sort MMLU datapoints by how many MuTual datapoints they are most similar to.
+            """,
             rich_help_panel=DATA_AUGMENTATION_PANEL,
         ),
     ] = DataSelectionStrategy.random,
@@ -143,11 +151,11 @@ def fine_tune(
         mmlu_train = augmentations.unify_mutual_mmlu_structure(mmlu_train)
         logger.info("Tokenizing MMLU")
         mmlu_train = finetune.tokenize_dataset(mmlu_train, tokenizer)
-        if scoring_strategy == DataSelectionStrategy.random:
+        if augmentation_strategy == DataSelectionStrategy.random:
             mmlu_add_ids = augmentations.random_augmentation(
                 scaled_percentage, mmlu_train, np.random.default_rng(seed)
             )
-        else:  # NOTE creates FAISS databases if they don't exist
+        else:  # creates FAISS databases if they don't exist
             mutual_db = faiss_utils.create_or_load_faiss_index(
                 faiss_index_dir,
                 mutual_index,
@@ -161,14 +169,14 @@ def fine_tune(
                 dataset=mmlu_train["article"],
             )
             mmlu_add_ids = augmentations.embedding_similarity_augmentation(
-                scaled_percentage, "size", mutual_db, mmlu_db
+                scaled_percentage, augmentation_strategy, mutual_db, mmlu_db
             )
         logger.info(
             "Added %d MMLU datapoints (p: %.3f scaled: %.4f) with strategy: '%s'",
             len(mmlu_add_ids),
             percentage,
             scaled_percentage,
-            scoring_strategy.value,
+            augmentation_strategy.value,
         )
         train_split = augmentations.merge_mutual_mmlu(
             mutual_train, mmlu_train, mmlu_merge_ids=mmlu_add_ids
@@ -180,7 +188,7 @@ def fine_tune(
                     "dataset": consts.MMLU_HF_PATH,
                     "name": "all",
                     "split": "auxiliary_train",
-                    "strategy": scoring_strategy.value,
+                    "strategy": augmentation_strategy.value,
                     "p": percentage,
                     "scaled_p": scaled_percentage,
                     "ids": mmlu_add_ids,
