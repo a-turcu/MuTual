@@ -7,8 +7,8 @@ from typing import Dict, Iterable, List, Tuple, Union
 import numpy as np
 import torch
 from datasets import Dataset, concatenate_datasets
-from faiss import (GpuIndexFlatL2, IndexFlatL2, StandardGpuResources,
-                   index_cpu_to_gpu)
+from faiss import GpuIndexFlatL2, IndexFlatL2, StandardGpuResources, index_cpu_to_gpu
+from numpy.linalg import norm
 from numpy.random import Generator
 
 from similarity_augmentations import utils
@@ -62,9 +62,18 @@ def embedding_similarity_augmentation(
     D, I, _ = find_ranking_lower_bound_for_n_unique_samples(
         mutual_index, mmlu_index, n_samples
     )
-    # transform L2 distance to cosine to have in [0, 1]
-    # https://github.com/facebookresearch/faiss/wiki/FAQ/7f59d7b610e258df8c15dc808ca54b2325515375#how-can-i-index-vectors-for-cosine-distance
-    D = (2 - D) / 2
+    # try transforming L2 distances to cosine to have in [0, 1], need L2
+    # normalized vectors to start with
+    # https://stats.stackexchange.com/questions/146221/is-cosine-similarity-identical-to-l2-normalized-euclidean-distance
+    mutual_sample_norm = norm(mutual_index.reconstruct(0)[None, ...])
+    mmlu_sample_norm = norm(mmlu_index.reconstruct(0)[None, ...])
+    both_index_normed = np.allclose(mutual_sample_norm, np.ones(1)) and np.allclose(
+        mmlu_sample_norm, np.ones(1)
+    )
+    if both_index_normed:
+        logger.info("Transform Euclidean -> Cosine distance")
+        # https://github.com/facebookresearch/faiss/wiki/FAQ/7f59d7b610e258df8c15dc808ca54b2325515375#how-can-i-index-vectors-for-cosine-distance
+        D = (2 - D) / 2
     sorted_sim_mmlu_points = sort_similar_datapoints_at_ranks(
         I, D, prioritize=sim_at_ranks_strategy
     )
@@ -75,7 +84,7 @@ def find_ranking_lower_bound_for_n_unique_samples(
     query_index: IndexFlatL2,
     target_index: IndexFlatL2,
     n_desired_similar: int,
-    start_max_rank: int = 5,
+    start_max_rank: int = 1,
 ) -> Tuple[np.ndarray, np.ndarray, int]:
     start_max_rank = max(1, start_max_rank)
     logger.info(
@@ -196,4 +205,5 @@ def merge_mutual_mmlu(
     assert "labels" in mutual.features, "Call `utils.preprocess_mutual(mutual)` first"
     if isinstance(mmlu_merge_ids, int) and mmlu_merge_ids < 0:
         mmlu_merge_ids = range(len(mmlu))
+    return concatenate_datasets([mutual, mmlu.select(mmlu_merge_ids)])
     return concatenate_datasets([mutual, mmlu.select(mmlu_merge_ids)])

@@ -34,7 +34,7 @@ def preprocess_mutual(
     `mutual`: MuTual dataset downloaded from HuggingFace; either a single
         split e.g. 'train' or the full `datasets.DatasetDict`.
 
-    `speaker_tags`: Whether to remove '[MF]:' tags from dialogues and continuations.
+    `speaker_tags`: Whether to keep '[MF]:' tags from dialogues and continuations.
 
     Returns
     -------

@@ -37,7 +37,7 @@ CREATE_DB_CREATION_PANEL = "Embedding creation options"
 
 
 @app.command()
-def create(
+def create_index(
     dataset: Annotated[
         MCDataset,
         Argument(help="Dataset retrieved from [b i]HuggingFace datasets[/b i]."),
@@ -46,10 +46,10 @@ def create(
         MCDatasetSplit,
         Argument(help="Dataset split from the chosen [b i]HuggingFace dataset[/b i]."),
     ],
-    index: Annotated[
+    index_name: Annotated[
         Optional[str],
         Option(
-            help=f"[green]FAISS[/green] index name for embedded collection, defaults to [green i]'{conf.VECTORDB_DIR}/DATASET__SPLIT__EMBEDDING-MODEL'[/green i]."
+            help=f"[green]FAISS[/green] index name for embedded collection, defaults to [green i]'{conf.VECTORDB_DIR}/DATASET__SPLIT__EMBEDDING-MODEL[__NO-SPEAKER-TAGS]'[/green i]."
         ),
     ] = None,
     embedding_model: Annotated[
@@ -104,9 +104,12 @@ def create(
             split_name = "auxiliary_train"
         hf_dataset = load_dataset(consts.MMLU_HF_PATH, name="all")
         split_articles = hf_dataset[split_name]["question"]
+    if index_name is None:
+        index_name = f"{dataset.value}__{split_name}__{embedding_model}"
+        index_name += "" if speaker_tags else "__no_speaker_tags"
     return faiss_utils.create_or_load_faiss_index(
         index_save_dir,
-        index or f"{dataset.value}__{split_name}__{embedding_model}",
+        index_name,
         SentenceTransformer(embedding_model),
         dataset=split_articles,
         overwrite=overwrite,
@@ -115,7 +118,7 @@ def create(
 
 
 @app.command()
-def load(
+def load_index(
     index_path: Annotated[
         Path, Argument(help="[green]FAISS[/green] index path of embedded collection.")
     ],

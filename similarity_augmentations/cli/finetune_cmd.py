@@ -54,7 +54,7 @@ def fine_tune(
     ] = MuTualSubset.mutual_plus,
     speaker_tags: Annotated[
         bool,
-        Option(help="Whether to strip '[MF]:' tags from [b i]MuTual[/b i] dialogues."),
+        Option(help="Whether to keep '[MF]:' tags from [b i]MuTual[/b i] dialogues."),
     ] = True,
     epochs: Annotated[
         int, Option(help="Number mf training epochs.", rich_help_panel=TRAINING_PANEL)
@@ -189,7 +189,7 @@ def fine_tune(
             )
 
     checkpoint = None
-    if resume:
+    if resume and model_save_dir.is_dir():
         checkpoint = get_last_checkpoint(model_save_dir)
         if checkpoint is None:
             logger.info(
