@@ -33,7 +33,7 @@ Example of the MuTual data
   "answer": "D"
 }
 ```
-The given code from the ```mmlu_utils.py``` file will automatically download the dataset and change the "question", "choices" and "answer" fields to match that of MuTual into "article", "options" and "answers" respetively. An id will also be added.
+The given code from the ```mmlu_utils.py``` file will automatically download the dataset and change the "question", "choices" and "answer" fields to match that of MuTual into "article", "options" and "answers", respectively. An id will also be added.
 
 ``` options ``` is a list of four candidates' response.
 
