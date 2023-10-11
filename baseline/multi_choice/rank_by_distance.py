@@ -79,26 +79,17 @@ if args.compare:
 		print("Loading mmlu scores...")
 		mmlu_scores = json.load(f)
 
-	# mtl_scores = [[id, score], [id, score], ...]
 	mtl_mu = np.mean([score for _, score in mtl_scores])
 	mtl_sd = np.std([score for _, score in mtl_scores])
 	mtl_min = np.min([score for _, score in mtl_scores])
 	mtl_max = np.max([score for _, score in mtl_scores])
 	print(f"Mutual scores: mean = {mtl_mu}, sd = {mtl_sd}, min={mtl_min}, max={mtl_max}")
 
-	# mmlu_scores = [[id, score], [id, score], ...]
 	mmlu_mu = np.mean([score for _, score in mmlu_scores])
 	mmlu_sd = np.std([score for _, score in mmlu_scores])
 	mmlu_min = np.min([score for _, score in mmlu_scores])
 	mmlu_max = np.max([score for _, score in mmlu_scores])
 	print(f"MMLU scores: mean = {mmlu_mu}, sd = {mmlu_sd}, min={mmlu_min}, max={mmlu_max}")
 
-
 	mmlu_numpy = np.asarray([score for _, score in mmlu_scores])
 	print(f"First element below mean mutual threshold has index {np.argmax(mmlu_numpy<mtl_mu)} of {len(mmlu_numpy)}")
-
-
-# results for Bogdan's embeddings from 28/09:
-# Mutual scores: mean = 0.12840557311490933, sd = 0.0446762604625268, min=-0.018264208600817598, max=0.24551262450001518
-# MMLU scores: mean = 0.06182741853990571, sd = 0.04611496630337503, min=-0.07081724730108141, max=0.23270543666408808
-# First element below mean mutual threshold has index 8744 of 99842
