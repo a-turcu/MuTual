@@ -14,6 +14,23 @@ Authors: Alexandru Turcu, Bogdan Palfi, Darie Petcu, Marco Gallo
 Example of the MuTual data
 <img src="./readme/construct.png" width="1000" >
 
+# Data statistics
+
+
+|                               |                                             MuTual |                                    MMLU [all, auxiliary_train] |
+|-------------------------------|----------------------------------------------------|--------------------------------------------------------------|
+| Context-Response Pairs        |                                               8860 |                                                              |
+| #Avg. Turns per Dialogue      |                                               4.73 |                                                              |
+| #Avg. Words per Utterance     |                                              19.57 |                                                              |
+| Vocabulary Size (Context)     |                                               8809 |                                                       140304 |
+| Vocabulary Size (Response)    |                                               8943 |                                                        53832 |
+| Vocabulary Size               |                                              11343 |                                                       150168 |
+| # Original Dialogues          |                                               6371 |                                                              |
+| # Original Questions          |                                              11323 |                                                              |
+| # Response Candidates         |                                                  4 |                                                            4 |
+| Avg. context length           |                                             93.33  |                                                       296.18 |
+| Avg. Context length quantiles | [  8,  34,  42,  49,  58,  79, 111, 141, 184, 408] | [   1,  104,  204,  261,  302,  332,  358,  386,  428, 1411] |
+
 
 # Data template
 ```data/mutual_plus/train```, ```data/mutual_plus/dev``` and ```data/mutual_plus/test``` are the training, development and test sets of MuTual Plus. After loading each file, you will get a dictionary. The format of them is as follows:
@@ -25,7 +42,7 @@ Example of the MuTual data
 "id": "dev_1"}
 ```
 
-```data/mmlu/auxiliary_train``` is the train set of MMLU. The format is similar to MuTual. 
+```data/mmlu/auxiliary_train``` is the train set of MMLU. The format is similar to MuTual.
 ```
 {
   "question": "The best evidence that two land areas were once connected is the discovery that both land masses",
@@ -50,7 +67,7 @@ conda activate dl4nlp
 ```
 
 ### Save MMLU Data
-The MuTual data is already available in the repository. 
+The MuTual data is already available in the repository.
 ```sh
 python baseline/multi_choice/mmlu_utils.py
 ```
