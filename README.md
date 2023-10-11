@@ -1,36 +1,22 @@
-# MuTual
+# Enhancing Multi-Turn Dialogue Reasoning: A Fusion of Datasets
 
-[MuTual: A Dataset for Multi-Turn Dialogue Reasoning](https://www.aclweb.org/anthology/2020.acl-main.130/) (ACL2020)
+Repository adapted from the paper: [MuTual: A Dataset for Multi-Turn Dialogue Reasoning](https://www.aclweb.org/anthology/2020.acl-main.130/) (ACL2020)
 
-MuTual is a retrieval-based dataset for multi-turn dialogue reasoning, which is modified from Chinese high school English listening comprehension test data. Please see our paper for more details.
+## Abstract
+The MuTual challenge was designed as a benchmark for testing the reasoning abilities of chatbots in a dialogue context. One of the baselines defined in the MuTual paper makes use of the BERT model, modified to fit a multiple-choice task. This study reproduces the reported baseline results and attempts to improve them by simultaneously fine-tuning on the additional MMLU dataset. Results show that model performance has the potential to be improved by fine-tuning on additional data that is similar enough but not the same as the downstream task data.
 
-We also provide several baselines to facilitate the further research. (Coming soon)
+Authors: Alexandru Turcu, Bogdan Palfi, Darie Petcu, Marco Gallo
+
+
 
 
 # Example
-The process of modifying the listening comprehension test data.
+Example of the MuTual data
 <img src="./readme/construct.png" width="1000" >
 
 
-Examples from the MuTual dataset. All choices are relevant to the context, but only one of them is logic correct. Some negative choices might be reasonable in extreme cases, but the positive one is the most appropriate. Clue words are purple and underline.
-<img src="./readme/example.png" width="1000" >
-
-# Data statistics
-
-|  | MuTual |
-|--------- | --- |
-| Context-Response Pairs | 8,860 |
-| #Avg. Turns per Dialogue | 4.73 |
-| #Avg. Words per Utterance |  19.57 |
-| Vocabulary Size (Context) |  8,809 |
-| Vocabulary Size (Response) |  8,943 |
-| Vocabulary Size |  11,343 |
-| # Original Dialogues |  6,371 |
-| # Original Questions |  11,323 |
-| # Response Candidates |  4 |
-
 # Data template
-```data/mutual/train```, ```data/mutual/dev``` and ```data/mutual/test``` are the training, development and test sets, respectively. After loading each file, you will get a dictionary. The format of them is as follows:
+```data/mutual_plus/train```, ```data/mutual_plus/dev``` and ```data/mutual_plus/test``` are the training, development and test sets of MuTual Plus. After loading each file, you will get a dictionary. The format of them is as follows:
 
 ```
 {"answers": "B",
@@ -39,32 +25,49 @@ Examples from the MuTual dataset. All choices are relevant to the context, but o
 "id": "dev_1"}
 ```
 
+```data/mmlu/auxiliary_train``` is the train set of MMLU. The format is similar to MuTual. 
+```
+{
+  "question": "What is the embryological origin of the hyoid bone?",
+  "choices": ["The first pharyngeal arch", "The first and second pharyngeal arches", "The second pharyngeal arch", "The second and third pharyngeal arches"],
+  "answer": "D"
+}
+```
+The given code from the ```mmlu_utils.py``` file will automatically download the dataset and change the "question", "choices" and "answer" fields to match that of MuTual into "article", "options" and "answers" respetively. An id will also be added.
+
 ``` options ``` is a list of four candidates' response.
 
 ``` article ```  is the context. ```f``` and ```m``` indicate female and male, respectively.
 
 ```answers``` is the correct answer. Noted that we do not realease the correct answer on test set.
 
-Please send your predictions (decode output) in the [sample format](./eval_sample/decode_sample.txt)(```id + "\t" + rank1prediction + "\t" + rank2prediction + "\t" + rank3prediction + "\t" + rank4prediction``` one instance per line), methods and dev performance to cuileyang@zju.edu.cn . We will evaluate your results according to the [Eval Script](./eval_sample/eval.py).
+# How to run the code
 
-# Reference
-
-If the corpus or the analysis is helpful to your research, please kindly cite our paper:
-```
-@inproceedings{mutual,
-    title = "MuTual: A Dataset for Multi-Turn Dialogue Reasoning",
-    author = "Cui, Leyang  and Wu, Yu and Liu, Shujie and Zhang, Yue and Zhou, Ming" ,
-    booktitle = "Proceedings of the 58th Conference of the Association for Computational Linguistics",
-    year = "2020",
-    publisher = "Association for Computational Linguistics",
-}
-```
-Please feel free to contact me(cuileyang@westlake.edu.cn), if you need any further information.
-
-# Acknowledgement
-We thank [Qingkai Min](https://taolusi.github.io/qingkai_min) for helping us to build the [leaderboard](https://nealcly.github.io/MuTual-leaderboard/).
-
-# See available options with
+### Create and activate environment
 ```sh
-python -m baseline.multi_choice.run_multiple_choice --h
+conda env create -f env.yml
+conda activate dl4nlp
 ```
+
+### Save MMLU Data
+The MuTual data is already available in the repository. 
+```sh
+python baseline/multi_choice/mmlu_utils.py
+```
+
+### Run classic (original) version with speaker characters removed
+To not remove the speaker characters, simply delete the "--remove_speakers" flag and change the "--output_dir" flag
+```sh
+python baseline/multi_choice/run_multiple_choice.py --num_train_epochs 10 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/classic/no-speakers" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
+```
+
+### Run Random Mix
+```sh
+python baseline/multi_choice/run_multiple_choice.py --train_mode "random_mix" --percentage 0.4 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/random_mix" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
+```
+
+### Run Informed Mix
+```sh
+python baseline/multi_choice/run_multiple_choice.py --train_mode "embeddings_mix" --percentage 0.4 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/inf_mix" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
+```
+
