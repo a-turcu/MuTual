@@ -62,12 +62,20 @@ python baseline/multi_choice/run_multiple_choice.py --num_train_epochs 10 --data
 ```
 
 ### Run Random Mix
+To run the experiment with random sampling from MMLU, use the "random_mix" option for the "--train_mode" flag.
 ```sh
-python baseline/multi_choice/run_multiple_choice.py --train_mode "random_mix" --percentage 0.4 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/random_mix" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
+python baseline/multi_choice/run_multiple_choice.py --train_mode "random_mix" --percentage 0.04 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/random_mix" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
 ```
 
 ### Run Informed Mix
+To run the experiment with euclidean-distance-based sampling from MMLU, use the "embeddings_mix" option for the "--train_mode" flag.
 ```sh
-python baseline/multi_choice/run_multiple_choice.py --train_mode "embeddings_mix" --percentage 0.4 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/inf_mix" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
+python baseline/multi_choice/run_multiple_choice.py --train_mode "embeddings_mix" --percentage 0.04 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/inf_mix" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
 ```
 
+### Select amount of MMLU to use for training alongside the MuTual data
+To adjust the percentage of MMLU sampled to use in training, change the "--percentage" flag value to the desired percentage, as a value between [0,1].
+For example, 0.1 will sample 10% of MMLU. **Make sure** the "--train_mode" argument is set to either "random_mix" or "embeddings_mix".
+```sh
+python baseline/multi_choice/run_multiple_choice.py --train_mode "embeddings_mix" --percentage 0.1 --data_dir "data/mutual_plus" --model_type "bert" --model_name_or_path "bert-base-uncased" --task_name "mutual" --output_dir "output/bert/inf_mix" --do_train --evaluate_during_training --do_lower_case --overwrite_output_dir --overwrite_cache --remove_speakers
+```
