@@ -6,7 +6,6 @@ import logging
 import faiss
 
 from tqdm import trange
-#from langchain.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer, util
 
 
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
 	
 	from utils_multiple_choice import MuTualProcessor
-
 	
 	if os.path.exists(os.path.join(save_dir, f'{split}.json')):
 		print(f'{split}.json already exists in {save_dir}.')
@@ -44,6 +42,7 @@ def create_embeddings(split='train', data_dir='data/mutual_plus', save_dir='data
 		logger.info(f"Saved {save_dir}/{split}.json")
   
 
+# create embeddings to be used with the FAISS index 
 def create_embeddings_faiss(split='train', data_dir='data/mutual_plus', save_dir='data/mutual_plus/embeddings'):
 
 	from utils_multiple_choice import MuTualProcessor
@@ -76,11 +75,14 @@ def create_embeddings_faiss(split='train', data_dir='data/mutual_plus', save_dir
 		logger.info(f"Saved {save_dir}/{split}.json")
 
 
+# calculates which embeddings from mmlu are closest to the embeddings from mutual
 def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 
 	# keys are strings; values are lists
-	emb_mutual = json.load(open(os.path.join(mutual_dir, 'train.json')))
-	emb_mmlu = json.load(open(os.path.join(mmlu_dir, 'auxiliary_train.json')))
+	filename_mutual = "distilroberta_mutual.json"
+	filename_mmlu = "distilroberta_mmlu.json"
+	emb_mutual = json.load(open(os.path.join(mutual_dir, filename_mutual)))
+	emb_mmlu = json.load(open(os.path.join(mmlu_dir, filename_mmlu)))
 
 	keys_mmlu = emb_mmlu.keys()
 	values_mmlu = emb_mmlu.values()
@@ -92,11 +94,9 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 	dim = vectors.shape[1]
 	index = faiss.IndexFlatL2(dim)
 	faiss.normalize_L2(vectors)
-	# position in vectors = positions in index
 	
 	index.add(vectors)
 	logger.info("Calculating euclidean distances")
-	# starts with auxiliary_train_1
 	for _, val in emb_mutual.items():
 		ref_val = np.array(val, dtype=np.float32)
 		ref_val = ref_val.reshape(1, -1)
@@ -119,16 +119,16 @@ def get_closest_embeddings(mutual_dir, mmlu_dir, percentage=0.04):
 	# sort by value, return only keys
 	new_dict = dict(sorted(new_dict.items(), key=lambda item: item[1], reverse=False)[:trunc])
 	ids = list(new_dict.keys())
-	# save list of ids as txt file
+
+	# save list of ids as txt file to not calculate them every run
 	with open(os.path.join(mmlu_dir, 'best_ids.txt'), 'w') as f:
 		for item in ids:
 			f.write("%s\n" % item)
 
 	return ids
 
-
+# read the embeddings to save time
 def get_precomputed_closest_embeddings(scores_file):
-
 	with open(scores_file, 'r') as f:
 		best_k = f.read().splitlines()
 	return best_k

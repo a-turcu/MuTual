@@ -4,7 +4,6 @@ from datasets import load_dataset
 
 answer_labels = {0: "A", 1: "B", 2: "C", 3: "D"}
 
-
 # Save each row of the dataset from each split into a separate txt file containing a JSON
 # representation of the row.
 def save_split(split, mmlu_dataset, dataset_path):
@@ -18,9 +17,6 @@ def save_split(split, mmlu_dataset, dataset_path):
         row["article"] = row.pop("question")
         row["options"] = row.pop("choices")
         row["id"] = f"{split}_{i + 1}"
-
-        # replace with double quotes
-        #row = str(row).replace("'", '"')
 
         file = os.path.join(dataset_path, split, f"{split}_{i + 1}.txt")
 

@@ -115,13 +115,13 @@ class MuTualProcessor(DataProcessor):
         file = os.path.join(data_dir2, "auxiliary_train")
 
         if train_mode == "random_mix":
+            # randomly add % of MMLU to fine-tuning data
             logger.info("ADDITIONALLY LOOKING AT {} train".format(data_dir2))
-
-            # how many files should be considered?
             file = self._read_txt(file, percentage)
             examples.extend(self._create_examples(file, "train"))
+        
         elif train_mode == "embeddings_mix":
-
+            # add % of MMLU to fine-tuning data considering the euclidean distance between embeddings
             from embeddings import get_closest_embeddings, create_embeddings, get_precomputed_closest_embeddings
 
             create_embeddings(split="train", data_dir=data_dir, save_dir=f"{data_dir}/embeddings")
@@ -224,11 +224,6 @@ def convert_examples_to_features(
             zip(example.contexts, example.endings)
         ):
             text_a = context
-            # text_a = ""
-            # if example.question.find("_") != -1:
-            #     # this is for cloze question
-            #     text_b = example.question.replace("_", ending)
-            # else:
             text_b = ending
 
             inputs = tokenizer.encode_plus(
@@ -237,7 +232,6 @@ def convert_examples_to_features(
                 add_special_tokens=True,
                 max_length=max_length,
                 return_token_type_ids=True,
-                # WHY WAS TRUNCATION COMMENTED?
                 truncation=True
             )
             if "num_truncated_tokens" in inputs and inputs["num_truncated_tokens"] > 0:
@@ -245,7 +239,6 @@ def convert_examples_to_features(
                     "Attention!You are poping response,"
                     "you need to try to use a bigger max seq length!"
                 )
-            # print(inputs)
             input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
 
             # The mask has 1 for real tokens and 0 for padding tokens. Only real

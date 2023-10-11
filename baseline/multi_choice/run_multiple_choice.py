@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Finetuning the library models for multiple choice (Bert, Roberta, XLNet)."""
+
 # TO RUN
 #python -u baseline\multi_choice\run_multiple_choice.py --train_mode "random_mix" --percentage 0.1 --data_dir "data/mutual_plus" --model_type "roberta" --model_name_or_path "roberta-base" --task_name "mutual" --output_dir "output" --do_train
 
@@ -147,8 +148,7 @@ def train(args, train_dataset, model, tokenizer):
     optimizer = AdamW(
         optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon
     )
-    # # scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
-    #                                              num_training_steps=t_total)
+   
     if args.fp16:
         try:
             from apex import amp
@@ -267,8 +267,6 @@ def train(args, train_dataset, model, tokenizer):
             train_iterator.close()
             break
 
-        # if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
-        #     # Log metrics
         if (
             args.local_rank == -1 and args.evaluate_during_training
         ):  # Only evaluate when single GPU otherwise metrics may not average well
@@ -289,7 +287,7 @@ def train(args, train_dataset, model, tokenizer):
                         str(results_test["eval_loss"]),
                         str(global_step),
                     )
-        # tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
+
         tb_writer.add_scalar(
             "loss", (tr_loss - logging_loss) / args.logging_steps, global_step
         )
@@ -621,7 +619,7 @@ def main():
     )
     parser.add_argument(
         "--num_train_epochs",
-        default=5.0,
+        default=4.0,
         type=float,
         help="Total number of training epochs to perform.",
     )
@@ -886,11 +884,6 @@ def main():
             "best steps of eval acc is the following checkpoints: %s", best_steps
         )
     return results
-
-# WHAT WE WANT TO RUN
-# Classic (10 epochs, with or without "--remove_speakers") + Test
-# Random (10 epochs, different percentages 0.04, 0.08) + Test
-# Similarity (10 epochs, different percentages 0.04, 0.08) + Test (run embedding)
 
 if __name__ == "__main__":
     main()

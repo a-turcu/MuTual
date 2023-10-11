@@ -1,3 +1,8 @@
+"""
+File for ranking MMLU embeddings by distance to MuTual embeddings
+Used as a statistic, has no effect on the model
+"""
+
 import json, tqdm
 import numpy as np
 
@@ -68,7 +73,6 @@ def create_or_load_vectordb(
 	return db
 
 
-
 embedding_model_name = "multi-qa-mpnet-base-dot-v1"
 embedder_dim = 768
 embedder = HuggingFaceEmbeddings(model_name=embedding_model_name)
@@ -88,11 +92,9 @@ with open(mmlu_embeddings_path, 'r') as f:
 
 mmlu_scores = {}
 
-
 #prepare index of mtl for similarity search
 Findex = FAISS.IndexFlatL2(embedder_dim)
 Findex.add(mtl_db)
-
 
 for row in tqdm.tqdm(mmlu_db.list()):
 	embedding = mmlu_db.index.reconstruct(row)
@@ -109,7 +111,6 @@ sorted_scores = sorted(mmlu_scores.items(), key=lambda x: x[1], reverse=True)
 
 with open(save_rankings_path, 'w') as f:
 	json.dump(sorted_scores, f)
-
 
 with open(mtl_scores_path, 'r') as f:
 	print("Loading mutual scores...")
@@ -132,13 +133,5 @@ mmlu_sd = np.std([score for _, score in mmlu_scores])
 mmlu_min = np.min([score for _, score in mmlu_scores])
 mmlu_max = np.max([score for _, score in mmlu_scores])
 print(f"MMLU scores: mean = {mmlu_mu}, sd = {mmlu_sd}, min={mmlu_min}, max={mmlu_max}")
-
-
 mmlu_numpy = np.asarray([score for _, score in mmlu_scores])
 print(f"First element below mean mutual threshold has index {np.argmax(mmlu_numpy<mtl_mu)} of {len(mmlu_numpy)}")
-
-
-# results for Bogdan's embeddings from 28/09:
-# Mutual scores: mean = 0.12840557311490933, sd = 0.0446762604625268, min=-0.018264208600817598, max=0.24551262450001518
-# MMLU scores: mean = 0.06182741853990571, sd = 0.04611496630337503, min=-0.07081724730108141, max=0.23270543666408808
-# First element below mean mutual threshold has index 8744 of 99842
