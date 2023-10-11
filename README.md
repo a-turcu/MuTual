@@ -28,8 +28,8 @@ Example of the MuTual data
 ```data/mmlu/auxiliary_train``` is the train set of MMLU. The format is similar to MuTual. 
 ```
 {
-  "question": "What is the embryological origin of the hyoid bone?",
-  "choices": ["The first pharyngeal arch", "The first and second pharyngeal arches", "The second pharyngeal arch", "The second and third pharyngeal arches"],
+  "question": "The best evidence that two land areas were once connected is the discovery that both land masses",
+  "choices": ["have the same climate.", "are in the same stage of succession.", "exist along the same line of longitude.", "have similar types of rocks and fossils."],
   "answer": "D"
 }
 ```
